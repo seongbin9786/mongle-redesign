@@ -3,6 +3,8 @@
 @import '@fontsource/pretendard/400.css';
 @import '@fontsource/pretendard/700.css';
 @import '@fontsource/pretendard/800.css';
+@import './styles/tokens.css';
+@import './styles/semantic.css';
 
 /* 손글씨 폰트(온글잎 은별): 기록 작성 등 유저 입력·감성 화면 기본 서체 */
 @font-face {
@@ -15,75 +17,13 @@
 @custom-variant dark (&:is(.dark *));
 
 /* 디자인 시스템 결(Gyeol). UX 방향성 프로토타입 A(관계 궤도)의 디자인 언어를
-   앱 전역 토큰으로 채택한 것이다. 잉크 중성 램프 + 종이 표면 + 결선 2단계 +
-   따뜻한 시그널 한 색. 램프는 hue 286(약간의 보라 기운)으로 미세하게 색이
-   돌아 순수 회색보다 종이에 가깝다. */
-:root {
-  --radius: 0.75rem;
-  /* 오버레이 레이어: 앱 콘텐츠 위에 뜨는 것들의 쌓임 순서를 한 곳에서 정한다.
-     확인팝업·다이얼로그는 #stack-overlay-root 포탈(--z-overlay)에 모여 같은
-     쌓임 맥락에서 DOM 순서로 겹친다. 바텀시트(vaul)·팝오버(radix)·탭바는 그
-     아래 레이어(z-50)로 라이브러리·레이아웃이 관할한다. */
-  --z-overlay: 70;
-  /* 기록 편지지 괘선. 배경 이미지라 currentColor를 못 받으므로 라이트/다크 각각 정의한다.
-     다크에선 검정 괘선이 어두운 카드에 묻혀 안 보여서 흰색 저투명으로 뒤집는다. */
-  --letter-paper: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'90'%20height%3D'28'%3E%3Cpath%20d%3D'M0%2025%20Q%2022%2021%2045%2025%20T%2090%2025'%20fill%3D'none'%20stroke%3D'rgba(0%2C0%2C0%2C0.07)'%20stroke-width%3D'1'%2F%3E%3C%2Fsvg%3E");
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.271 0.009 285.8);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.271 0.009 285.8);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.271 0.009 285.8);
-  --primary: oklch(0.271 0.009 285.8);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.976 0.001 286.4);
-  --secondary-foreground: oklch(0.271 0.009 285.8);
-  --muted: oklch(0.976 0.001 286.4);
-  --muted-foreground: oklch(0.648 0.007 286.2);
-  --muted-soft: oklch(0.759 0.007 286.2);
-  --accent: oklch(0.976 0.001 286.4);
-  --accent-foreground: oklch(0.271 0.009 285.8);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.94 0.001 286.4);
-  --input: oklch(0.898 0.003 286.3);
-  --ring: oklch(0.271 0.009 285.8);
-  /* 따뜻한 시그널. 아이브로우·환기 안내 등 한두 군데만 아껴 쓴다. */
-  --warm: oklch(0.657 0.165 45.3);
-  /* elevation 단계 토큰, 라이트/다크 각각 정의해 dark:shadow 중복을 없앤다. */
-  --elevation-1: 0 4px 12px rgba(24, 24, 27, 0.07);
-  --elevation-2: 0 8px 18px rgba(24, 24, 27, 0.06);
-  --elevation-3: 0 10px 24px rgba(24, 24, 27, 0.08);
-  --elevation-4: 0 18px 42px rgba(24, 24, 27, 0.12);
-  --font-sans: 'Pretendard', ui-sans-serif, system-ui, sans-serif;
-}
-
-.dark {
-  --letter-paper: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'90'%20height%3D'28'%3E%3Cpath%20d%3D'M0%2025%20Q%2022%2021%2045%2025%20T%2090%2025'%20fill%3D'none'%20stroke%3D'rgba(255%2C255%2C255%2C0.10)'%20stroke-width%3D'1'%2F%3E%3C%2Fsvg%3E");
-  --background: oklch(0.193 0.006 285.8);
-  --foreground: oklch(0.976 0.001 286.4);
-  --card: oklch(0.235 0.007 286);
-  --card-foreground: oklch(0.976 0.001 286.4);
-  --popover: oklch(0.235 0.007 286);
-  --popover-foreground: oklch(0.976 0.001 286.4);
-  --primary: oklch(0.976 0.001 286.4);
-  --primary-foreground: oklch(0.235 0.007 286);
-  --secondary: oklch(0.285 0.008 286);
-  --secondary-foreground: oklch(0.976 0.001 286.4);
-  --muted: oklch(0.285 0.008 286);
-  --muted-foreground: oklch(0.687 0.007 286.2);
-  --muted-soft: oklch(0.556 0.007 286.2);
-  --accent: oklch(0.285 0.008 286);
-  --accent-foreground: oklch(0.976 0.001 286.4);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.976 0.001 286.4);
-  --warm: oklch(0.71 0.15 45.3);
-  --elevation-1: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --elevation-2: 0 8px 18px rgba(0, 0, 0, 0.26);
-  --elevation-3: 0 10px 24px rgba(0, 0, 0, 0.32);
-  --elevation-4: 0 18px 42px rgba(0, 0, 0, 0.38);
-}
+   앱 전역으로 채택한 것이다. 토큰은 3층이다:
+   - primitive(styles/tokens.css): 테마와 무관한 원시 값, --gyeol- 접두
+   - semantic(styles/semantic.css): 역할 토큰. .dark 반전이 일어나는 유일한 층
+   - 아래 @theme inline: 시맨틱 토큰을 Tailwind 유틸로 매핑
+   잉크 중성 램프 + 종이 표면 + 결선 2단계 + 따뜻한 시그널 한 색. 램프는
+   hue 286(약간의 보라 기운)으로 미세하게 색이 돌아 순수 회색보다 종이에
+   가깝다. 계약 정본은 docs/design-system-gyeol.md. */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -116,11 +56,10 @@
   --shadow-e4: var(--elevation-4);
   --font-sans: var(--font-sans);
   --font-hand: 'Onglip Eunbyeol', var(--font-sans);
-  /* 앱 고유 타이포 스케일. font-size만 지정해 기존 text-[Npx] 임의값과 렌더가 동일하다
-     (line-height는 각 사용처의 leading 클래스가 계속 결정한다). */
-  --text-caption: 11px;
-  --text-label: 13px;
-  --text-body: 15px;
+  /* 앱 고유 타이포 스케일. 값은 primitive 정본(tokens.css)에서 가져온다. */
+  --text-caption: var(--gyeol-text-caption);
+  --text-label: var(--gyeol-text-label);
+  --text-body: var(--gyeol-text-body);
 }
 
 @layer base {

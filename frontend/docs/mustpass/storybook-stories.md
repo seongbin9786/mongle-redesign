@@ -7,7 +7,7 @@
 - [ ] 각 컴포넌트 옆에 `<basename>.stories.tsx` 생성. **컴포넌트 원본은 수정 금지** (스토리만 추가).
 - [ ] `import type { Meta, StoryObj } from '@storybook/react-vite'` + `satisfies Meta<typeof X>` + `type Story = StoryObj<typeof meta>` 패턴 준수.
 - [ ] `tags: ['autodocs']` 필수.
-- [ ] title 계층은 폴더 기준 PascalCase: `UI/*`, `Brand/*`, `Auth/*`, `Events/*`, `Form/*`, `Home/*`, `Layout/*`, `Person/*`, `Record/*`, `Settings/*`, `Timeline/*`.
+- [ ] title 계층은 폴더 기준 PascalCase: `Foundations/*`, `UI/*`, `Brand/*`, `Auth/*`, `Events/*`, `Form/*`, `Home/*`, `Layout/*`, `Person/*`, `Record/*`, `Settings/*`, `Timeline/*`. `Foundations/*`는 토큰 스펙시먼·디자인 시스템 안내(`src/foundations/`) 전용이다.
 - [ ] props/variant는 **실제 시그니처에서 도출**(추측 금지). 사용자 노출 텍스트는 한국어 샘플.
 
 ## 렌더 계약
