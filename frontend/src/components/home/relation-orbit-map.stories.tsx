@@ -69,6 +69,8 @@ const nodes: PersonNode[] = [
     intimacy: { status: 'DISTANT', daysSinceLastMeet: 342 },
   }),
   person(15, '홍예지', null, 'friend'),
+  // 태그가 없는 사람은 그룹 색 없이 무채색 테두리로 남는다.
+  person(16, '배유진', 45, 'friend', { relationTags: [] }),
 ]
 
 const edges: RelationEdge[] = nodes.map((node) => ({

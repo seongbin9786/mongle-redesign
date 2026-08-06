@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { defaultPersonImageUrl } from '@/lib/default-person-image'
 import { formatPersonName, monogram } from '@/lib/format'
 import { optimizedImageUrl } from '@/lib/image-url'
+import { hexToRgba, primaryTagColor } from '@/lib/relation-tag-colors'
 import {
   ORBIT_CENTER,
   ORBIT_RINGS,
@@ -155,6 +156,11 @@ export function RelationOrbitMap({
           hasTagFilter &&
           !node.relationTags.some((tag) => selectedTagIds.includes(tag.id))
         const displayName = formatPersonName(node)
+        // 그룹 컬러링 — 태그 색이 곧 범례라 노드 테두리를 첫 관계태그 색으로
+        // 칠한다(시안 A의 그룹 표현). 즐겨찾기는 PRD 계약인 잉크 테두리 + 별이 우선.
+        const groupColor = node.favorite
+          ? null
+          : primaryTagColor(node.relationTags)
 
         return (
           <button
@@ -184,8 +190,10 @@ export function RelationOrbitMap({
                 <Avatar
                   className={cn(
                     'size-9 border-2 bg-card shadow-e1 transition-transform duration-150 active:scale-90',
-                    node.favorite ? 'border-foreground' : 'border-border',
+                    node.favorite && 'border-foreground',
+                    !node.favorite && !groupColor && 'border-border',
                   )}
+                  style={groupColor ? { borderColor: groupColor } : undefined}
                 >
                   <AvatarImage
                     src={
@@ -198,7 +206,18 @@ export function RelationOrbitMap({
                     }
                     alt={displayName}
                   />
-                  <AvatarFallback>{monogram(node.name)}</AvatarFallback>
+                  <AvatarFallback
+                    style={
+                      groupColor
+                        ? {
+                            backgroundColor: hexToRgba(groupColor, 0.13),
+                            color: groupColor,
+                          }
+                        : undefined
+                    }
+                  >
+                    {monogram(node.name)}
+                  </AvatarFallback>
                 </Avatar>
                 {node.favorite ? (
                   <span className="absolute -top-1.5 -right-1 text-[10px] leading-none text-amber-500">
