@@ -1,0 +1,77 @@
+/*
+ * 디자인 시스템 결(Gyeol)의 시맨틱 토큰. 역할(역할별 색·표면·선)을 이름으로
+ * 갖고, light/dark 반전이 일어나는 유일한 층이다. 값은 항상 primitive
+ * (tokens.css)를 참조하고 원시 값을 직접 쓰지 않는다.
+ *
+ * 토큰 이름은 shadcn 규약을 유지한다. stackflow 헤더, 버튼 color-mix 등
+ * 컴포넌트가 var(--background) 형태로 직접 소비하므로 이름을 바꾸면 회귀다.
+ */
+
+:root {
+  --radius: var(--gyeol-radius);
+  /* 오버레이 레이어: 앱 콘텐츠 위에 뜨는 것들의 쌓임 순서를 한 곳에서 정한다.
+     확인팝업·다이얼로그는 #stack-overlay-root 포탈(--z-overlay)에 모여 같은
+     쌓임 맥락에서 DOM 순서로 겹친다. 바텀시트(vaul)·팝오버(radix)·탭바는 그
+     아래 레이어(z-50)로 라이브러리·레이아웃이 관할한다. */
+  --z-overlay: 70;
+  /* 기록 편지지 괘선. 배경 이미지라 currentColor를 못 받으므로 라이트/다크 각각 정의한다.
+     다크에선 검정 괘선이 어두운 카드에 묻혀 안 보여서 흰색 저투명으로 뒤집는다. */
+  --letter-paper: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'90'%20height%3D'28'%3E%3Cpath%20d%3D'M0%2025%20Q%2022%2021%2045%2025%20T%2090%2025'%20fill%3D'none'%20stroke%3D'rgba(0%2C0%2C0%2C0.07)'%20stroke-width%3D'1'%2F%3E%3C%2Fsvg%3E");
+  --font-sans: var(--gyeol-font-sans);
+
+  --background: var(--gyeol-paper);
+  --foreground: var(--gyeol-ink-90);
+  --card: var(--gyeol-paper);
+  --card-foreground: var(--gyeol-ink-90);
+  --popover: var(--gyeol-paper);
+  --popover-foreground: var(--gyeol-ink-90);
+  --primary: var(--gyeol-ink-90);
+  --primary-foreground: var(--gyeol-ink-05);
+  --secondary: var(--gyeol-ink-10);
+  --secondary-foreground: var(--gyeol-ink-90);
+  --muted: var(--gyeol-ink-10);
+  --muted-foreground: var(--gyeol-ink-50);
+  --muted-soft: var(--gyeol-ink-35);
+  --accent: var(--gyeol-ink-10);
+  --accent-foreground: var(--gyeol-ink-90);
+  --destructive: var(--gyeol-red);
+  --border: var(--gyeol-ink-15);
+  --input: var(--gyeol-ink-20);
+  --ring: var(--gyeol-ink-90);
+  --warm: var(--gyeol-warm);
+
+  /* elevation 단계. 그림자 색은 테마 종속이라 primitive를 거치지 않고 이 층에 둔다. */
+  --elevation-1: 0 4px 12px rgba(24, 24, 27, 0.07);
+  --elevation-2: 0 8px 18px rgba(24, 24, 27, 0.06);
+  --elevation-3: 0 10px 24px rgba(24, 24, 27, 0.08);
+  --elevation-4: 0 18px 42px rgba(24, 24, 27, 0.12);
+}
+
+.dark {
+  --letter-paper: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'90'%20height%3D'28'%3E%3Cpath%20d%3D'M0%2025%20Q%2022%2021%2045%2025%20T%2090%2025'%20fill%3D'none'%20stroke%3D'rgba(255%2C255%2C255%2C0.10)'%20stroke-width%3D'1'%2F%3E%3C%2Fsvg%3E");
+  --background: var(--gyeol-ink-100);
+  --foreground: var(--gyeol-ink-10);
+  --card: var(--gyeol-ink-95);
+  --card-foreground: var(--gyeol-ink-10);
+  --popover: var(--gyeol-ink-95);
+  --popover-foreground: var(--gyeol-ink-10);
+  --primary: var(--gyeol-ink-10);
+  --primary-foreground: var(--gyeol-ink-95);
+  --secondary: var(--gyeol-ink-85);
+  --secondary-foreground: var(--gyeol-ink-10);
+  --muted: var(--gyeol-ink-85);
+  --muted-foreground: var(--gyeol-ink-45);
+  --muted-soft: var(--gyeol-ink-60);
+  --accent: var(--gyeol-ink-85);
+  --accent-foreground: var(--gyeol-ink-10);
+  --destructive: var(--gyeol-red-bright);
+  --border: var(--gyeol-white-10);
+  --input: var(--gyeol-white-15);
+  --ring: var(--gyeol-ink-10);
+  --warm: var(--gyeol-warm-bright);
+
+  --elevation-1: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --elevation-2: 0 8px 18px rgba(0, 0, 0, 0.26);
+  --elevation-3: 0 10px 24px rgba(0, 0, 0, 0.32);
+  --elevation-4: 0 18px 42px rgba(0, 0, 0, 0.38);
+}
