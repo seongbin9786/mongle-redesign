@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import type { ChipRef } from '@/apis/generated/mongle-api.schemas'
 
 // 관계 태그 도메인 팔레트·색상 유틸. UI 부품 레이어(components/ui)가 아니라
 // lib에 두어 도메인 지식과 표현 레이어를 분리한다. 관계태그 색을 쓰는 화면
@@ -57,4 +58,13 @@ export function coloredTagStyle(
     borderColor: active ? normalized : hexToRgba(normalized, 0.38),
     color: active ? '#FFFFFF' : normalized,
   }
+}
+
+// 인물의 대표 그룹 색 = 첫 관계태그의 색. 태그가 여러 개여도 첫째만 대표로
+// 써야 지도와 관계 카드에서 한 사람의 색이 항상 같다(관계 카드 시트도 첫
+// 태그를 대표로 보여준다). 태그가 없으면 null을 돌려 화면이 무채색을 유지한다.
+export function primaryTagColor(tags?: readonly ChipRef[] | null) {
+  const primary = tags?.[0]
+  if (!primary) return null
+  return normalizeChipColor(primary.color)
 }
