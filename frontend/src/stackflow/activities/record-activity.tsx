@@ -447,7 +447,7 @@ export const RecordActivity: ActivityComponentType<'Record'> = ({ params }) => {
             />
           }
         >
-          <h2 className="text-2xl font-bold">누구와의 기록이에요?</h2>
+          <h2 className="text-2xl font-semibold">누구와의 기록이에요?</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             함께한 사람을 모두 골라주세요. {selectedPersonIds.length}명 선택
           </p>
@@ -600,7 +600,7 @@ export const RecordActivity: ActivityComponentType<'Record'> = ({ params }) => {
                         className="size-20 rounded-xl object-cover"
                       />
                     ) : (
-                      <div className="flex size-20 items-center justify-center rounded-xl bg-muted text-[10px] font-bold text-muted-foreground">
+                      <div className="flex size-20 items-center justify-center rounded-xl bg-muted text-[10px] font-semibold text-muted-foreground">
                         PHOTO
                       </div>
                     )}

@@ -197,7 +197,7 @@ export function ProfileOnboarding({
         />
 
         {error ? (
-          <p className="mt-4 text-xs font-bold text-destructive">{error}</p>
+          <p className="mt-4 text-xs font-semibold text-destructive">{error}</p>
         ) : null}
 
         <Button
@@ -215,7 +215,7 @@ export function ProfileOnboarding({
           type="button"
           disabled={pending}
           onClick={() => void finish({ profileImageUrl: null, gender: null })}
-          className="mt-4 px-4 py-2 text-sm font-bold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
+          className="mt-4 px-4 py-2 text-sm font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
         >
           지금은 건너뛰기
         </button>

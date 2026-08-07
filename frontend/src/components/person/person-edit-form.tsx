@@ -116,7 +116,7 @@ export function PersonEditForm({
       {error ? (
         <p
           role="alert"
-          className="rounded-xl bg-destructive/10 px-4 py-3 text-sm font-bold text-destructive"
+          className="rounded-xl bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive"
         >
           {error}
         </p>
@@ -138,7 +138,7 @@ export function PersonEditForm({
               id="name"
               value={values.name}
               onChange={(event) => patch('name', event.target.value)}
-              className="mt-2 h-11 bg-background px-3 text-base font-bold"
+              className="mt-2 h-11 bg-background px-3 text-base font-semibold"
               placeholder="이름을 입력해 주세요"
               maxLength={20}
               enterKeyHint="done"
