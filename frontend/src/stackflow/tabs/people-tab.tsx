@@ -130,7 +130,7 @@ export function PeopleTab() {
         </section>
 
         {favoriteMutation.isError ? (
-          <p className="text-center text-xs font-bold text-destructive">
+          <p className="text-center text-xs font-semibold text-destructive">
             즐겨찾기를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.
           </p>
         ) : null}
@@ -272,7 +272,7 @@ function PersonListItem({
           </div>
           <p
             className={cn(
-              'mt-1 text-caption font-bold',
+              'mt-1 text-caption font-semibold',
               lastMetLabel === '기록 없음'
                 ? 'text-muted-foreground/70'
                 : 'text-muted-foreground',

@@ -87,7 +87,7 @@ export function ActivityFlowChart({
     '최근'
   const axisLabelClass = (position: number) =>
     cn(
-      'absolute text-[10px] leading-none font-bold text-muted-foreground whitespace-nowrap',
+      'absolute text-[10px] leading-none font-semibold text-muted-foreground whitespace-nowrap',
       position <= 0.02
         ? 'translate-x-0 text-left'
         : position >= 0.98
@@ -137,7 +137,7 @@ export function ActivityFlowChart({
                         onSelectPoint?.(null)
                       }}
                       className={cn(
-                        'flex w-full px-3 py-1.5 text-left text-caption font-bold',
+                        'flex w-full px-3 py-1.5 text-left text-caption font-semibold',
                         period === option.value
                           ? 'bg-primary text-primary-foreground'
                           : 'text-foreground hover:bg-muted',

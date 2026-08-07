@@ -134,7 +134,7 @@ export function TagTypePanel({
             {description}
           </p>
         </div>
-        <span className="shrink-0 text-caption font-bold text-muted-foreground">
+        <span className="shrink-0 text-caption font-semibold text-muted-foreground">
           {chips.length}개
         </span>
       </div>
@@ -243,7 +243,7 @@ export function TagTypePanel({
           />
         ) : null}
         {createMutation.isError || renameMutation.isError ? (
-          <p className="mt-3 text-xs font-bold text-destructive">
+          <p className="mt-3 text-xs font-semibold text-destructive">
             태그를 변경하지 못했어요. 잠시 후 다시 시도해 주세요.
           </p>
         ) : null}

@@ -104,7 +104,7 @@ export function SettingsTab() {
                 </Button>
               </div>
               {resetMutation.isError ? (
-                <p className="mt-3 text-xs font-bold text-destructive">
+                <p className="mt-3 text-xs font-semibold text-destructive">
                   초기화하지 못했어요. 잠시 후 다시 시도해 주세요.
                 </p>
               ) : null}
@@ -120,7 +120,7 @@ export function SettingsTab() {
                 <span className="text-body font-semibold text-foreground">
                   Mongle
                 </span>
-                <span className="text-xs font-bold text-muted-foreground">
+                <span className="text-xs font-semibold text-muted-foreground">
                   MVP
                 </span>
               </div>

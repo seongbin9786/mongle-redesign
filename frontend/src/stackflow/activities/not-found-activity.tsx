@@ -12,7 +12,7 @@ export const NotFoundActivity: ActivityComponentType<'NotFound'> = () => {
         <button
           type="button"
           onClick={() => replace('Main', { tab: 'home' })}
-          className="rounded-xl border border-border px-4 py-2 text-sm font-bold"
+          className="rounded-xl border border-border px-4 py-2 text-sm font-semibold"
         >
           홈으로
         </button>

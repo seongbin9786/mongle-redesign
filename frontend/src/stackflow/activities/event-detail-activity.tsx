@@ -97,7 +97,7 @@ export const EventDetailActivity: ActivityComponentType<'EventDetail'> = ({
           ) : null}
         </div>
 
-        <p className="mt-2 text-sm font-bold text-muted-foreground">
+        <p className="mt-2 text-sm font-semibold text-muted-foreground">
           {formatWhen(event.occurredDate, event.occurredTime)}
         </p>
 
@@ -154,7 +154,7 @@ export const EventDetailActivity: ActivityComponentType<'EventDetail'> = ({
         ) : null}
 
         {event.weather ? (
-          <p className="mt-3 text-xs font-bold text-muted-foreground">
+          <p className="mt-3 text-xs font-semibold text-muted-foreground">
             날씨 · {event.weather.label}
           </p>
         ) : null}

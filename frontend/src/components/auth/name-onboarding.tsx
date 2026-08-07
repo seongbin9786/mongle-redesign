@@ -55,7 +55,7 @@ export function NameOnboarding({
             placeholder="이름을 입력해 주세요"
             value={username}
             onChange={(event) => setUsername(event.target.value)}
-            className="h-14 rounded-2xl border-border/70 bg-card px-4 text-base font-bold shadow-sm"
+            className="h-14 rounded-2xl border-border/70 bg-card px-4 text-base font-semibold shadow-sm"
           />
         </label>
 

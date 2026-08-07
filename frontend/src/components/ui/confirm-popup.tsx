@@ -52,7 +52,10 @@ export function ConfirmPopup({
           {description}
         </p>
         {error ? (
-          <p className="mt-3 text-sm font-bold text-destructive" role="alert">
+          <p
+            className="mt-3 text-sm font-semibold text-destructive"
+            role="alert"
+          >
             {error}
           </p>
         ) : null}
