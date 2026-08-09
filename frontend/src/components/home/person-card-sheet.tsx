@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { TagChip } from '@/components/ui/tag-chip'
 import { PERSON_NODE_ATTRIBUTE } from '@/components/home/person-node-marker'
+import { PAN_THRESHOLD_PX } from '@/components/home/use-orbit-viewport'
 import { defaultPersonImageUrl } from '@/lib/default-person-image'
 import { daysSinceDate, formatPersonName, monogram } from '@/lib/format'
 import { optimizedImageUrl } from '@/lib/image-url'
@@ -52,20 +53,46 @@ export function PersonCardSheet({
   // vaul은 modal={false}일 때 바깥 pointerdown을 무조건 preventDefault 해서
   // (Content의 onPointerDownOutside) 바깥 탭 닫기가 아예 오지 않는다. 그래서
   // 직접 듣되, 다른 인물을 고르는 탭만은 '닫기'가 아니라 '내용 교체'로 넘긴다.
+  //
+  // 닫기 판정은 pointerdown이 아니라 '움직이지 않고 뗐는가'로 한다 — 시트를 띄운 채
+  // 지도를 끌어 다른 사람을 찾는 게 이 화면의 기본 동작이라, 누른 순간 닫으면
+  // 지도를 만질 때마다 시트가 사라진다.
   const onOpenChangeRef = useRef(onOpenChange)
   onOpenChangeRef.current = onOpenChange
   const isOpen = person != null
   useEffect(() => {
     if (!isOpen) return
+    let pressedAt: { x: number; y: number } | null = null
     const handlePointerDown = (event: PointerEvent) => {
+      pressedAt = null
       const target = event.target
       if (!(target instanceof Element)) return
       if (target.closest('[data-slot=drawer-content]')) return
       if (target.closest(`[${PERSON_NODE_ATTRIBUTE}]`)) return
+      pressedAt = { x: event.clientX, y: event.clientY }
+    }
+    const handlePointerUp = (event: PointerEvent) => {
+      const start = pressedAt
+      pressedAt = null
+      if (!start) return
+      const travelled = Math.hypot(
+        event.clientX - start.x,
+        event.clientY - start.y,
+      )
+      if (travelled > PAN_THRESHOLD_PX) return
       onOpenChangeRef.current(false)
     }
+    const handlePointerCancel = () => {
+      pressedAt = null
+    }
     document.addEventListener('pointerdown', handlePointerDown)
-    return () => document.removeEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('pointerup', handlePointerUp)
+    document.addEventListener('pointercancel', handlePointerCancel)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('pointerup', handlePointerUp)
+      document.removeEventListener('pointercancel', handlePointerCancel)
+    }
   }, [isOpen])
 
   const displayName = shown ? formatPersonName(shown) : ''

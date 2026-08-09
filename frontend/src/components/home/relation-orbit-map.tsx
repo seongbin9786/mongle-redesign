@@ -1,4 +1,4 @@
-import { Aperture, Layers, Maximize2 } from 'lucide-react'
+import { Aperture, Layers, Maximize2, Minimize2 } from 'lucide-react'
 import { useMemo } from 'react'
 import type {
   MeNode,
@@ -37,6 +37,15 @@ const RING_LABEL_FADE = { near: 0.9, far: 0.35 } as const
 const NAME_ROOM_PX = 56
 const NODE_ROOM_PX = 50
 const MIN_CROWD_SCALE = 0.58
+
+/** 아바타 지름(월드 px). size-10 과 같은 값이어야 탭 타깃 계산이 맞는다. */
+const NODE_AVATAR_PX = 40
+/**
+ * 노드 탭 타깃의 화면상 최소 지름. 전체 보기 배율에서 아바타는 한 자리 px까지
+ * 작아져 손가락으로는 맞출 수 없다 — 보이는 크기는 배율을 따르되 누르는 면적은
+ * 지켜 준다. 다만 이웃까지의 거리를 넘기면 옆 사람의 탭을 가로채므로 거기서 멈춘다.
+ */
+const MIN_TAP_PX = 40
 
 function ringFade(
   range: { near: number; far: number },
@@ -112,18 +121,22 @@ export function RelationOrbitMap({
     <div
       ref={viewport.containerRef}
       className="relative h-full w-full touch-none overflow-hidden select-none"
-      style={{ perspective: '1100px' }}
       {...viewport.handlers}
     >
       {/* 팬·줌 레이어와 기울임 레이어를 나눈다 — 한 요소에 두면 기울임에 건
-          transition이 드래그·핀치까지 늘어지게 만든다. */}
+          transition이 드래그·핀치까지 늘어지게 만든다.
+          3D는 여기서 시작하고 여기서 끝난다: perspective를 이 레이어에 걸고 자신은
+          평면(flat)으로 둬서, 기울인 판과 그 위에 선 사람이 하나의 3D 장면으로
+          투영된 뒤 2D로 합쳐진다. 팬·줌 레이어까지 preserve-3d로 열어 두면
+          기울임 각도에서 노드 절반이 히트 테스트에서 아예 빠져(그려지기는 한다)
+          탭해도 관계 카드가 열리지 않는다. */}
       <div
         className="absolute top-1/2 left-1/2 will-change-transform"
         style={{
           width: worldSize,
           height: worldSize,
           transform: `translate(-50%, -50%) translate(${viewport.translate.x}px, ${viewport.translate.y}px) scale(${viewport.scale})`,
-          transformStyle: 'preserve-3d',
+          perspective: '1100px',
         }}
       >
         <div
@@ -230,6 +243,17 @@ export function RelationOrbitMap({
               : distant
                 ? 0.4
                 : 1
+            const avatarScreenPx =
+              NODE_AVATAR_PX * cue.scale * crowdScale * viewport.scale
+            const tapScreenPx = Math.max(
+              avatarScreenPx,
+              Math.min(MIN_TAP_PX, room),
+            )
+            // 여백은 월드 좌표라 배율을 되돌려 넣는다(p-1 = 4가 원래 값).
+            const hitPadding = Math.max(
+              4,
+              (tapScreenPx - avatarScreenPx) / 2 / viewport.scale,
+            )
 
             return (
               <button
@@ -242,7 +266,7 @@ export function RelationOrbitMap({
                   onSelectPerson(node.id)
                 }}
                 className={cn(
-                  'absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   // 눕힌 판에서 사람을 세우려면 역회전이 '진짜 3D 회전'으로
                   // 남아야 한다. 버튼이 3D를 평면으로 눌러버리면 역회전은
                   // 세우기가 아니라 세로 찌그러짐으로 렌더된다. 그래서 이 버튼에는
@@ -252,6 +276,7 @@ export function RelationOrbitMap({
                 style={{
                   left: `${percent(placed.x)}%`,
                   top: `${percent(placed.y)}%`,
+                  padding: hitPadding,
                 }}
                 aria-label={`${displayName} 상세`}
               >
@@ -366,14 +391,19 @@ export function RelationOrbitMap({
       </button>
 
       {/* 기본 배율은 사람이 읽히는 크기를 먼저 지키므로 바깥 궤도가 화면을
-          넘칠 수 있다. 넘친 만큼 돌아갈 길을 항상 열어 둔다. */}
+          넘칠 수 있다. 넘친 만큼 돌아갈 길을 항상 열어 둔다 — 다 축소했으면
+          같은 자리에서 기본 보기로 되돌아가는 왕복이어야 한다. */}
       {viewport.canZoomOut || viewport.moved ? (
         <button
           type="button"
           onClick={viewport.canZoomOut ? viewport.zoomOut : viewport.reset}
           className="absolute top-2 right-2 z-40 flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-3 py-1.5 text-caption font-medium text-foreground shadow-e1 backdrop-blur-[2px]"
         >
-          <Maximize2 className="size-3.5" />
+          {viewport.canZoomOut ? (
+            <Maximize2 className="size-3.5" />
+          ) : (
+            <Minimize2 className="size-3.5" />
+          )}
           {viewport.canZoomOut ? '전체 보기' : '기본 보기'}
         </button>
       ) : null}
