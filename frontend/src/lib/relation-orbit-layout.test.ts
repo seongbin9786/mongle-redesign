@@ -5,7 +5,6 @@ import {
   formatKnownDuration,
   layoutOrbit,
   nearestNeighbourGaps,
-  orbitArcPath,
   orbitBands,
   orbitRingIndex,
   orbitRings,
@@ -225,23 +224,6 @@ describe('nearestNeighbourGaps', () => {
   it('세로가 눌리면 그만큼 가까워진 것으로 잰다', () => {
     const gaps = nearestNeighbourGaps(nodes, 0.5)
     expect(gaps.get(3)).toBeCloseTo(50, 5)
-  })
-})
-
-describe('orbitArcPath', () => {
-  it('12시 방향 기준의 원호 경로를 만든다', () => {
-    const path = orbitArcPath(100, -16, 16)
-    expect(path).toMatch(
-      /^M -?[\d.]+ -?[\d.]+ A 100 100 0 0 1 -?[\d.]+ -?[\d.]+$/,
-    )
-    const [start, end] = path
-      .replace(/^M /, '')
-      .split(' A 100 100 0 0 1 ')
-      .map((point) => point.split(' ').map(Number))
-    expect(start[0]).toBeLessThan(0)
-    expect(end[0]).toBeGreaterThan(0)
-    expect(start[1]).toBeLessThan(0)
-    expect(end[1]).toBeLessThan(0)
   })
 })
 

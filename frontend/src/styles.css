@@ -164,9 +164,20 @@ html[data-browser-nav-transition-skip] * {
   animation: orbit-bob 6.5s ease-in-out infinite alternate;
 }
 
+/* 기울임 ↔ 초점 전환. 팬·줌 레이어와 분리된 레이어에만 걸어야 드래그·핀치가
+   같이 늘어지지 않는다. 눕는 판과 그 위에서 몸을 세우는 사람이 같은 곡선으로
+   움직여야 '판이 눕는다'로 읽힌다. */
+.orbit-tilt {
+  transition: transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orbit-ring,
   .orbit-bob {
     animation: none;
+  }
+
+  .orbit-tilt {
+    transition: none;
   }
 }
