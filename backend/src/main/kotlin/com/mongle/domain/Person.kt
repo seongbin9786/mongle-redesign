@@ -20,7 +20,8 @@ import java.util.UUID
  * 인물(관계를 맺은 사람).
  *
  * 소유는 UUID ownerId에 귀속되고 소프트삭제를 상속한다 — 지워도 과거 참조(기록)에는 값이 남는 규약(SoftDeletableEntity).
- * 관계 태그(RELATION_TAG 칩)는 label 을 복사하지 않고 id 만 참조한다(#22) — 칩 이름을 바꾸면 저절로 반영된다.
+ * 관계 태그(RELATION_TAG 칩)·소속(AFFILIATION 칩)은 label 을 복사하지 않고 id 만 참조한다(#22) —
+ * 칩 이름을 바꾸면 저절로 반영된다. 소속은 사람당 하나라 조인 엔티티 없이 컬럼 하나로 든다.
  */
 @Entity
 @Table(
@@ -50,7 +51,17 @@ class Person(
     @Enumerated(EnumType.STRING)
     @Column(name = "gender")
     var gender: PersonGender? = null,
-    // 관계 유형: 칩이 아닌 한 줄 텍스트(관계 태그와 다른 개념). 한 사람당 하나.
+    /**
+     * 소속(AFFILIATION 칩) 한 개. 관계 태그가 여러 개 붙는 라벨이라면, 소속은 "이 사람이 어디 사람인가"를
+     * 하나로 답하는 축이다 — 목록에서 아바타 ring 색이 이 값으로 결정된다.
+     * 칩과 마찬가지로 label 을 복사하지 않고 id 만 참조한다(#22).
+     */
+    @Column(name = "affiliation_chip_id")
+    var affiliationChipId: Long? = null,
+    /**
+     * (레거시) 소속 도입 전의 자유 텍스트 관계 유형. API 에서는 사라졌고 AffiliationBackfill 만 읽는다 —
+     * 백필이 소속 칩으로 승격한 뒤 null 로 비운다. 새로 채워지는 일은 없다.
+     */
     @Column(name = "relation_type")
     var relationType: String? = null,
     @Column(nullable = false)

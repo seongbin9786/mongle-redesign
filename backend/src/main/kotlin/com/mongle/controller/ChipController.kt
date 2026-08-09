@@ -29,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController
 
 @Tag(
     name = "칩",
-    description = "칩(카테고리·감정·날씨·관계태그) 개인화 — 공통 칩 위에 개인 칩을 만들고, 개인 칩만 이름변경·삭제한다.",
+    description = "칩(카테고리·감정·날씨·관계태그·소속) 개인화 — 공통 칩 위에 개인 칩을 만들고, 개인 칩만 이름변경·삭제한다. 소속만 parentId 로 1단계 중첩을 갖는다.",
 )
 @RestController
 @RequestMapping("/api/v1/chips")
@@ -70,7 +70,7 @@ class ChipController(
     fun create(
         @AuthUser user: UserPrincipal,
         @RequestBody request: ChipCreateRequest,
-    ): ChipResponse = ChipResponse.from(chipService.create(user.id, request.type, request.label, request.color))
+    ): ChipResponse = ChipResponse.from(chipService.create(user.id, request.type, request.label, request.color, request.parentId))
 
     @Operation(
         operationId = "updateChip",
@@ -90,7 +90,7 @@ class ChipController(
         @Parameter(description = "칩 id.", example = "12") @PathVariable id: Long,
         @RequestBody request: ChipRenameRequest,
     ): ChipResponse {
-        val chip = chipService.rename(user.id, id, request.label, request.color)
+        val chip = chipService.rename(user.id, id, request.label, request.color, request.parentId)
         // 목록 조회와 같은 규칙으로 default 를 채운다 — 개인 카테고리 칩이 기본(공통 전부 숨김)일 때 이름변경 응답만 어긋나지 않게.
         val defaultId = if (chip.type == ChipType.CATEGORY) chipService.defaultCategoryId(user.id) else null
         return ChipResponse.from(chip, defaultId)

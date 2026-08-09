@@ -47,6 +47,16 @@ interface EventRepository : JpaRepository<Event, Long> {
         @Param("personId") personId: Long,
     ): Long
 
+    // 디렉토리 '기록 많은 순' 정렬·목록 표시용 배치 집계 — 인물 수만큼 countByPersonId 를 도는 N+1 을 막는다.
+    // 기록이 0건인 인물은 결과에 없으므로 호출부가 0으로 채운다.
+    @Query(
+        "SELECT new com.mongle.repository.PersonRecordCount(ep.personId, COUNT(e)) FROM Event e, EventPerson ep " +
+            "WHERE ep.eventId = e.id AND ep.personId IN :personIds AND e.deletedAt IS NULL GROUP BY ep.personId",
+    )
+    fun countByPersonIdIn(
+        @Param("personIds") personIds: Collection<Long>,
+    ): List<PersonRecordCount>
+
     // 만난 횟수(#30): 만남 카테고리 기록의 고유 날짜 수(같은 날 여러 건은 1회).
     @Query(
         "SELECT COUNT(DISTINCT e.occurredDate) FROM Event e, EventPerson ep WHERE ep.eventId = e.id " +

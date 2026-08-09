@@ -10,28 +10,34 @@ import io.swagger.v3.oas.annotations.media.Schema
  */
 @Schema(description = "개인 칩 생성 요청. 칩 종류와 라벨을 받는다.")
 data class ChipCreateRequest(
-    @field:Schema(description = "칩 종류(카테고리·감정·날씨·관계태그).", example = "RELATION_TAG")
+    @field:Schema(description = "칩 종류(카테고리·감정·날씨·관계태그·소속).", example = "RELATION_TAG")
     val type: ChipType,
-    @field:Schema(description = "칩에 표시할 라벨. 종류 안에서 중복될 수 없다.", example = "대학 친구")
+    @field:Schema(description = "칩에 표시할 라벨. 종류 안에서 중복될 수 없다(소속은 같은 상위 안에서만).", example = "대학 친구")
     val label: String,
-    @field:Schema(description = "칩 표시 색상(hex). 관계태그 등 색상이 필요한 칩에서 사용한다.", example = "#0EA5E9", nullable = true)
+    @field:Schema(description = "칩 표시 색상(hex). 관계태그·루트 소속에서 사용한다. 하위 소속은 무시된다.", example = "#0EA5E9", nullable = true)
     val color: String? = null,
+    @field:Schema(description = "상위 소속 칩 id. 소속에서만 쓸 수 있고 상위는 루트여야 한다(중첩 1단계).", example = "31", nullable = true)
+    val parentId: Long? = null,
 )
 
 @Schema(description = "칩 이름 변경 요청. 개인 칩만 변경할 수 있다.")
 data class ChipRenameRequest(
-    @field:Schema(description = "새 라벨. 종류 안에서 중복될 수 없다.", example = "동네 친구")
+    @field:Schema(description = "새 라벨. 종류 안에서 중복될 수 없다(소속은 같은 상위 안에서만).", example = "동네 친구")
     val label: String,
-    @field:Schema(description = "칩 표시 색상(hex). null 이면 색상을 비운다.", example = "#22A06B", nullable = true)
+    @field:Schema(description = "칩 표시 색상(hex). null 이면 색상을 비운다. 하위 소속은 무시된다.", example = "#22A06B", nullable = true)
     val color: String? = null,
+    @field:Schema(description = "상위 소속 칩 id. null 이면 루트로 올린다(소속 전용).", example = "31", nullable = true)
+    val parentId: Long? = null,
 )
 
 @Schema(description = "칩 응답. 공통 칩과 개인 칩을 함께 담는다.")
 data class ChipResponse(
     @field:Schema(description = "칩 id.", example = "12")
     val id: Long,
-    @field:Schema(description = "칩 종류(카테고리·감정·날씨·관계태그).", example = "RELATION_TAG")
+    @field:Schema(description = "칩 종류(카테고리·감정·날씨·관계태그·소속).", example = "RELATION_TAG")
     val type: ChipType,
+    @field:Schema(description = "상위 소속 칩 id. 루트이거나 계층이 없는 종류면 null.", example = "31", nullable = true)
+    val parentId: Long?,
     @field:Schema(description = "칩 라벨. 소프트삭제된 칩도 과거 기록 표시를 위해 라벨은 유지된다.", example = "대학 친구")
     val label: String,
     @field:Schema(description = "칩 표시 색상(hex).", example = "#0EA5E9", nullable = true)
@@ -49,6 +55,7 @@ data class ChipResponse(
         fun from(chip: Chip, defaultChipId: Long? = null): ChipResponse = ChipResponse(
             id = requireNotNull(chip.id) { "저장되지 않은 Chip은 응답으로 변환할 수 없습니다." },
             type = chip.type,
+            parentId = chip.parentId,
             label = chip.label,
             color = chip.color,
             personal = !chip.common,

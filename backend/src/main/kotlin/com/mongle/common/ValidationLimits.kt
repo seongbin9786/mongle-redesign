@@ -10,7 +10,6 @@ package com.mongle.common
 object ValidationLimits {
     // 글자수 (§12.3)
     const val NAME_MAX = 20
-    const val RELATION_TYPE_MAX = 20
     const val CHIP_NAME_MAX = 10
     const val EVENT_TITLE_MAX = 40
     const val PREFERENCE_ITEM_MAX = 30

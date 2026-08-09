@@ -33,4 +33,9 @@ interface ChipRepository : JpaRepository<Chip, Long> {
 
     // 이름변경 대상 — 내 소유·active 개인 칩만. 공통(ownerId null)·타인·이미 지운 칩은 안 잡힌다.
     fun findByIdAndOwnerIdAndDeletedAtIsNull(id: Long, ownerId: UUID): Chip?
+
+    // 계층 칩(소속) — 루트 삭제 시 함께 지울 자식, 그리고 손자 생성 차단 판정.
+    fun findByParentIdAndDeletedAtIsNull(parentId: Long): List<Chip>
+
+    fun existsByParentIdAndDeletedAtIsNull(parentId: Long): Boolean
 }

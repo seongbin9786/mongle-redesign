@@ -37,6 +37,25 @@
 
 Health check: `GET /actuator/health` → `{"status":"UP"}`.
 
+## 2-1. 릴리스 전 스키마 손보기 (칩 종류 추가 시 필수)
+
+`ddl-auto: update` 는 **기존 컬럼의 enum 목록·CHECK 제약을 갱신하지 못한다.** 그래서 `ChipType` 에 값을
+추가한 릴리스는 배포 전에 `chip.type` 컬럼을 한 번 넓혀야 하고, 안 하면 기동 시
+`Data truncated for column 'type'`(MySQL) / `violates check constraint`(Postgres) 로 앱이 죽는다.
+
+`AFFILIATION`(소속) 추가 릴리스에서 실제로 겪었고, 앞으로 종류를 더할 때도 같다.
+
+```sql
+-- Supabase(Postgres): Hibernate 가 만든 enum CHECK 제약을 떼어낸다(이름은 보통 chip_type_check).
+ALTER TABLE chip DROP CONSTRAINT IF EXISTS chip_type_check;
+
+-- 로컬 도커(MySQL 8.4): 네이티브 ENUM 컬럼을 문자열로 바꾼다.
+ALTER TABLE chip MODIFY type VARCHAR(32) NOT NULL;
+```
+
+엔티티에는 `@Column(columnDefinition = "varchar(32)")` 를 박아 **새로 만드는 스키마**는 이 문제가
+재발하지 않는다. 위 SQL 은 이미 만들어진 DB 를 따라오게 하는 1회성 작업이다.
+
 ## 3. 배포 검증
 
 > 사용자 id와 `owner_id`가 bigint에서 UUID로 바뀌는 릴리스다. 기존 DB에는 자동 적용되지 않으므로 배포 전에 DB를 초기화하거나 명시적 타입 변환 마이그레이션을 수행한다.

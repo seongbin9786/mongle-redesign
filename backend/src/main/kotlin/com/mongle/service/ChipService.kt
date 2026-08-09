@@ -35,30 +35,36 @@ class ChipService(
     }
 
     @Transactional
-    fun create(userId: UUID, type: ChipType, rawLabel: String, rawColor: String? = null): Chip {
+    fun create(userId: UUID, type: ChipType, rawLabel: String, rawColor: String? = null, parentId: Long? = null): Chip {
         val label = rawLabel.trim()
-        val color = normalizeColor(rawColor)
         Validators.requireNotBlank(label, Messages.REQUIRED_CHIP_NAME)
         Validators.maxLength(label, ValidationLimits.CHIP_NAME_MAX)
-        assertNoDuplicate(userId, type, label)
+        val parent = resolveParent(userId, type, parentId)
+        // 하위 소속은 색을 갖지 않는다 — 표시 색은 루트가 정한다(mustpass people-directory).
+        val color = if (parent == null) normalizeColor(rawColor) else null
+        assertNoDuplicate(userId, type, label, parentId = parent?.id)
         Validators.chipKindLimit(chipRepository.countByTypeAndOwnerIdAndDeletedAtIsNull(type, userId))
 
         val nextOrder = (chipRepository.findFirstByTypeAndOwnerIdOrderByDisplayOrderDesc(type, userId)?.displayOrder ?: -1) + 1
-        return chipRepository.save(Chip(type = type, ownerId = userId, label = label, color = color, displayOrder = nextOrder))
+        return chipRepository.save(
+            Chip(type = type, ownerId = userId, label = label, color = color, displayOrder = nextOrder, parentId = parent?.id),
+        )
     }
 
     @Transactional
-    fun rename(userId: UUID, chipId: Long, rawLabel: String, rawColor: String? = null): Chip {
+    fun rename(userId: UUID, chipId: Long, rawLabel: String, rawColor: String? = null, parentId: Long? = null): Chip {
         // 개인 칩만 이름을 바꾼다 — 공통·타인·없는 칩은 여기서 잡히지 않아 NOT_FOUND.
         val chip = chipRepository.findByIdAndOwnerIdAndDeletedAtIsNull(chipId, userId)
             ?: throw BusinessException(ErrorCode.NOT_FOUND)
         val label = rawLabel.trim()
-        val color = normalizeColor(rawColor)
         Validators.requireNotBlank(label, Messages.REQUIRED_CHIP_NAME)
         Validators.maxLength(label, ValidationLimits.CHIP_NAME_MAX)
-        assertNoDuplicate(userId, chip.type, label, excludeId = chipId)
+        val parent = resolveParent(userId, chip.type, parentId, movingChipId = chipId)
+        val color = if (parent == null) normalizeColor(rawColor) else null
+        assertNoDuplicate(userId, chip.type, label, parentId = parent?.id, excludeId = chipId)
         chip.rename(label)
         chip.changeColor(color)
+        chip.moveUnder(parent?.id)
         return chip
     }
 
@@ -73,7 +79,14 @@ class ChipService(
         assertCategoryMinimum(userId, chip)
         when {
             chip.common -> hideCommon(userId, chip)
-            chip.ownerId == userId -> chip.softDelete()
+            chip.ownerId == userId -> {
+                // 루트 소속을 지우면 하위도 함께 사라진다 — 부모 없는 하위가 남으면 목록에서 갈 곳이 없다.
+                // 인물의 참조는 끊지 않는다(소프트삭제된 칩도 라벨을 유지하는 과거 참조 보존 규약).
+                if (chip.type.nestable && chip.root) {
+                    chipRepository.findByParentIdAndDeletedAtIsNull(chipId).forEach { it.softDelete() }
+                }
+                chip.softDelete()
+            }
             else -> throw BusinessException(ErrorCode.NOT_FOUND)
         }
     }
@@ -119,8 +132,39 @@ class ChipService(
         }
     }
 
-    /** 같은 종류 안 중복(공통 전체 + 내 개인 active). excludeId 는 이름변경 시 자기 자신 제외. */
-    private fun assertNoDuplicate(userId: UUID, type: ChipType, label: String, excludeId: Long? = null) {
+    /**
+     * 상위 칩 해석. 계층을 안 쓰는 종류에 parentId 가 오거나(INVALID_INPUT),
+     * 깊이 2단계를 만들려 하거나, 자기 자신을 부모로 삼으면 거절한다.
+     * 없는·타인·다른 종류 칩은 NOT_FOUND.
+     */
+    private fun resolveParent(userId: UUID, type: ChipType, parentId: Long?, movingChipId: Long? = null): Chip? {
+        if (parentId == null) return null
+        if (!type.nestable) throw BusinessException(ErrorCode.INVALID_INPUT)
+        if (parentId == movingChipId) throw BusinessException(ErrorCode.INVALID_INPUT)
+        val parent = chipRepository.findByIdAndOwnerIdAndDeletedAtIsNull(parentId, userId)
+            ?: throw BusinessException(ErrorCode.NOT_FOUND)
+        if (parent.type != type) throw BusinessException(ErrorCode.NOT_FOUND)
+        // 부모는 언제나 루트다 — 깊이는 1단계로 못 박는다.
+        if (!parent.root) throw BusinessException(ErrorCode.INVALID_INPUT)
+        // 자식이 있는 칩을 다른 칩 밑으로 넣으면 손자가 생긴다.
+        if (movingChipId != null && chipRepository.existsByParentIdAndDeletedAtIsNull(movingChipId)) {
+            throw BusinessException(ErrorCode.INVALID_INPUT)
+        }
+        return parent
+    }
+
+    /**
+     * 같은 종류 안 중복(공통 전체 + 내 개인 active). excludeId 는 이름변경 시 자기 자신 제외.
+     * 계층이 있는 종류(소속)는 **같은 부모 안에서만** 중복을 막는다 —
+     * `학교 > 동아리` 와 `직장 > 동아리` 는 다른 소속이기 때문.
+     */
+    private fun assertNoDuplicate(userId: UUID, type: ChipType, label: String, parentId: Long? = null, excludeId: Long? = null) {
+        if (type.nestable) {
+            val siblingDup = visibleChips(userId, type)
+                .any { it.id != excludeId && it.parentId == parentId && it.label == label }
+            Validators.rejectDuplicate(siblingDup)
+            return
+        }
         val commonDup = chipRepository.existsByTypeAndOwnerIdIsNullAndLabelAndDeletedAtIsNull(type, label)
         val personalDup = if (excludeId == null) {
             chipRepository.existsByTypeAndOwnerIdAndLabelAndDeletedAtIsNull(type, userId, label)
