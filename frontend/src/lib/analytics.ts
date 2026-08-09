@@ -18,7 +18,6 @@ export const featureEvents = {
   homeDefaultPeriodChanged: 'home_default_period_changed',
   homeRelationTagFiltered: 'home_relation_tag_filtered',
   homePersonCardOpened: 'home_person_card_opened',
-  homeViewChanged: 'home_view_changed',
   throwbackOpened: 'throwback_opened',
   throwbackDismissed: 'throwback_dismissed',
   timelineFilterChanged: 'timeline_filter_changed',

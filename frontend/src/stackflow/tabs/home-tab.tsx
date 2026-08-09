@@ -1,11 +1,10 @@
 import { useActivityParams, useStepFlow } from '@stackflow/react'
 import { useQuery } from '@tanstack/react-query'
-import { CircleDot, Clock3, List, X } from 'lucide-react'
+import { Clock3, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { chipQuery, homeQuery } from '@/apis/queries'
 import { PersonCardSheet } from '@/components/home/person-card-sheet'
 import { useMainOverlayContainer } from '@/stackflow/activities/main-overlay-container'
-import { RelationListView } from '@/components/home/relation-list-view'
 import { RelationOrbitMap } from '@/components/home/relation-orbit-map'
 import { RelationTagFilter } from '@/components/home/relation-tag-filter'
 import { Button } from '@/components/ui/button'
@@ -24,8 +23,6 @@ import {
   subscribeDefaultHomePeriod,
 } from '@/lib/home-period'
 import type { HomePeriod } from '@/lib/home-period'
-import { getHomeView, setHomeView } from '@/lib/home-view'
-import type { HomeView } from '@/lib/home-view'
 import { personMatchesTags } from '@/lib/relation-list'
 import { cn } from '@/lib/utils'
 import { TabShell } from '@/stackflow/components/tab-shell'
@@ -44,15 +41,7 @@ export function HomeTab() {
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const [throwbackDismissed, setThrowbackDismissed] = useState(false)
   const [throwbackExiting, setThrowbackExiting] = useState(false)
-  // PRD: 마지막에 고른 보기를 기억한다. 기본은 궤도(홈은 지도가 주연).
-  const [view, setView] = useState<HomeView>(() => getHomeView())
-
-  const changeView = (next: HomeView) => {
-    if (next === view) return
-    setView(next)
-    setHomeView(next)
-    void trackFeature(featureEvents.homeViewChanged, { view: next })
-  }
+  // 홈은 지도 하나만 보여준다 — 리스트로 훑는 일은 사람 탭이 전담한다(mustpass people-directory).
 
   const mapQuery = useQuery(homeQuery.relationMap())
   const relationTagQuery = useQuery(chipQuery.byType('RELATION_TAG'))
@@ -155,20 +144,6 @@ export function HomeTab() {
             )}
           </p>
         </div>
-        {!isEmpty ? (
-          <button
-            type="button"
-            onClick={() => changeView(view === 'orbit' ? 'list' : 'orbit')}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors active:bg-muted"
-            aria-label={view === 'orbit' ? '리스트로 보기' : '궤도로 보기'}
-          >
-            {view === 'orbit' ? (
-              <List className="size-4.5" />
-            ) : (
-              <CircleDot className="size-4.5" />
-            )}
-          </button>
-        ) : null}
       </header>
 
       {mapQuery.isPending ? (
@@ -196,9 +171,7 @@ export function HomeTab() {
             </section>
           ) : null}
 
-          {view === 'orbit' &&
-          selectedTagIds.length > 0 &&
-          matchedCount === 0 ? (
+          {selectedTagIds.length > 0 && matchedCount === 0 ? (
             <div className="mb-3 flex items-center justify-center gap-2.5 rounded-full border border-border bg-card px-4 py-2.5 shadow-e1">
               <p className="text-caption text-muted-foreground">
                 이 조건에 맞는 사람이 없어요
@@ -213,67 +186,31 @@ export function HomeTab() {
             </div>
           ) : null}
 
-          {view === 'orbit' && !isEmpty && graphNodes.length > 20 ? (
-            <div className="mb-3 flex items-center justify-center gap-2.5 rounded-full border border-border bg-card px-4 py-2.5 shadow-e1">
-              <p className="text-caption text-muted-foreground">
-                인원이 많아요. 리스트로 보면 한눈에 편해요.
-              </p>
-              <button
-                type="button"
-                onClick={() => changeView('list')}
-                className="text-caption font-semibold text-foreground underline underline-offset-2"
-              >
-                리스트로 보기
-              </button>
-            </div>
-          ) : null}
-
-          {view === 'orbit' ? (
-            <RelationOrbitMap
-              me={mapData.me}
-              nodes={graphNodes}
-              edges={visibleEdges}
-              selectedTagIds={selectedTagIds}
-              onSelectPerson={openPersonCard}
-            >
-              {isEmpty ? (
-                // '나' 노드(세로 약 51%)와 겹치지 않게 안내를 중심 아래에 둔다.
-                <div className="absolute inset-0 z-30 flex flex-col items-center px-8 pt-[82%] text-center">
-                  <EmptyState>
-                    <EmptyStateTitle>아직 기록한 사람이 없어요</EmptyStateTitle>
-                    <EmptyStateDescription>
-                      첫 사람을 추가해 관계를 남겨보세요. 함께한 따뜻한 순간을
-                      기록하면 관계 지도가 조금씩 채워져요.
-                    </EmptyStateDescription>
-                    <EmptyStateAction>
-                      <Button size="cta" onClick={() => push('PersonNew', {})}>
-                        ＋ 사람 추가
-                      </Button>
-                    </EmptyStateAction>
-                  </EmptyState>
-                </div>
-              ) : null}
-            </RelationOrbitMap>
-          ) : isEmpty ? (
-            <EmptyState>
-              <EmptyStateTitle>아직 기록한 사람이 없어요</EmptyStateTitle>
-              <EmptyStateDescription>
-                첫 사람을 추가해 관계를 남겨보세요.
-              </EmptyStateDescription>
-              <EmptyStateAction>
-                <Button size="cta" onClick={() => push('PersonNew', {})}>
-                  ＋ 사람 추가
-                </Button>
-              </EmptyStateAction>
-            </EmptyState>
-          ) : (
-            <RelationListView
-              nodes={graphNodes}
-              selectedTagIds={selectedTagIds}
-              onSelectPerson={openPersonCard}
-              onClearFilter={() => setSelectedTagIds([])}
-            />
-          )}
+          <RelationOrbitMap
+            me={mapData.me}
+            nodes={graphNodes}
+            edges={visibleEdges}
+            selectedTagIds={selectedTagIds}
+            onSelectPerson={openPersonCard}
+          >
+            {isEmpty ? (
+              // '나' 노드(세로 약 51%)와 겹치지 않게 안내를 중심 아래에 둔다.
+              <div className="absolute inset-0 z-30 flex flex-col items-center px-8 pt-[82%] text-center">
+                <EmptyState>
+                  <EmptyStateTitle>아직 기록한 사람이 없어요</EmptyStateTitle>
+                  <EmptyStateDescription>
+                    첫 사람을 추가해 관계를 남겨보세요. 함께한 따뜻한 순간을
+                    기록하면 관계 지도가 조금씩 채워져요.
+                  </EmptyStateDescription>
+                  <EmptyStateAction>
+                    <Button size="cta" onClick={() => push('PersonNew', {})}>
+                      ＋ 사람 추가
+                    </Button>
+                  </EmptyStateAction>
+                </EmptyState>
+              </div>
+            ) : null}
+          </RelationOrbitMap>
         </>
       )}
 

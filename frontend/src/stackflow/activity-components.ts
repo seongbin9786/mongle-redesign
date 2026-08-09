@@ -1,6 +1,7 @@
 import { MainActivity } from '@/stackflow/activities/main-activity'
 import { PersonActivity } from '@/stackflow/activities/person-activity'
 import { PersonNewActivity } from '@/stackflow/activities/person-new-activity'
+import { PeopleSearchActivity } from '@/stackflow/activities/people-search-activity'
 import { PersonEditActivity } from '@/stackflow/activities/person-edit-activity'
 import { EventDetailActivity } from '@/stackflow/activities/event-detail-activity'
 import { RecordActivity } from '@/stackflow/activities/record-activity'
@@ -17,6 +18,7 @@ export const activityComponents = {
   Main: MainActivity,
   Person: PersonActivity,
   PersonNew: PersonNewActivity,
+  PeopleSearch: PeopleSearchActivity,
   PersonEdit: PersonEditActivity,
   EventDetail: EventDetailActivity,
   Record: RecordActivity,

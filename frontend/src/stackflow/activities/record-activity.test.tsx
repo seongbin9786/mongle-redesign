@@ -8,6 +8,7 @@ import type {
   GetChipsParams,
   PersonResponse,
 } from '@/apis/generated/mongle-api.schemas'
+import { CHIP_TYPES } from '@/apis/queries/chips'
 import { RecordActivity } from './record-activity'
 
 const flow = vi.hoisted(() => ({
@@ -50,7 +51,8 @@ const person: PersonResponse = {
   lastMetDate: null,
   profileImageUrl: null,
   gender: null,
-  relationType: null,
+  affiliation: null,
+  recordCount: 0,
   relationTags: [],
   likes: [],
   cautions: [],
@@ -133,7 +135,8 @@ describe('RecordActivity', () => {
     expect(screen.getByText('불러오는 중…')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '저장' })).toBeNull()
 
-    await waitFor(() => expect(resolveChips).toHaveLength(4))
+    // 종류가 늘 때마다 숫자를 고치지 않도록 실제 조회 목록에서 개수를 받는다
+    await waitFor(() => expect(resolveChips).toHaveLength(CHIP_TYPES.length))
     resolveChips.forEach((resolve) => resolve())
 
     expect(await screen.findByRole('button', { name: '저장' })).toBeEnabled()
@@ -152,7 +155,8 @@ describe('RecordActivity', () => {
     await user.click(screen.getByRole('button', { name: '다시 시도' }))
 
     expect(await screen.findByRole('button', { name: '저장' })).toBeEnabled()
-    expect(api.getChips).toHaveBeenCalledTimes(8)
+    // 첫 조회 1회 + 재시도 1회 = 종류 수 x 2
+    expect(api.getChips).toHaveBeenCalledTimes(CHIP_TYPES.length * 2)
   })
 
   it('저장 실패 시 입력 화면을 유지하고 오류를 보여준다', async () => {

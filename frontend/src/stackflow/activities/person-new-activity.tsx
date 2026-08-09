@@ -6,7 +6,7 @@ import { useRef, useState } from 'react'
 import { FunnelHeader } from '@/components/layout/funnel-header'
 import { DateWheel } from '@/components/person/date-wheel'
 import { ListField } from '@/components/person/list-field'
-import { RelationTypeField } from '@/components/person/relation-type-field'
+import { AffiliationField } from '@/components/person/affiliation-field'
 import {
   GENDER_OPTIONS,
   ProfileHero,
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/step-slide'
 import { TagChip } from '@/components/ui/tag-chip'
 import { AppScreen } from '@/stackflow/components/app-screen'
-import { personMutation } from '@/apis/mutations'
+import { chipMutation, personMutation } from '@/apis/mutations'
 import { chipQuery, homeQuery, personQuery } from '@/apis/queries'
 import { uploadImage } from '@/lib/api/images'
 import { featureEvents, trackFeature } from '@/lib/analytics'
@@ -65,6 +65,30 @@ export const PersonNewActivity: ActivityComponentType<'PersonNew'> = () => {
   const chipsQuery = useQuery(chipQuery.all())
   const relationTags =
     chipsQuery.data?.filter((c) => c.type === 'RELATION_TAG') ?? []
+  const affiliations =
+    chipsQuery.data?.filter((c) => c.type === 'AFFILIATION') ?? []
+
+  // 소속은 인물을 만들다가 즉석에서 새로 만들 수 있어야 한다(사람보다 소속이 먼저
+  // 있어야 한다는 순서를 강요하지 않는다). 만들자마자 그 소속으로 선택까지 옮긴다.
+  const affiliationMutation = useMutation({
+    ...chipMutation.create(),
+    onSuccess: async (chip) => {
+      void trackFeature(featureEvents.tagCreated, {
+        tag_type: 'affiliation',
+        has_color: chip.parentId == null,
+      })
+      await queryClient.invalidateQueries({ queryKey: chipQuery.allKey })
+      patch('affiliationChipId', chip.id)
+    },
+  })
+
+  const createAffiliation = (label: string, parentId: number | null) => {
+    affiliationMutation.mutate({
+      type: 'AFFILIATION',
+      label,
+      parentId: parentId ?? undefined,
+    })
+  }
 
   const funnel = useFunnel<PersonNewSteps>({
     id: 'person-new',
@@ -155,10 +179,13 @@ export const PersonNewActivity: ActivityComponentType<'PersonNew'> = () => {
       <>
         <h2 className="text-2xl font-bold">어떤 사이예요?</h2>
         <div className="mt-8 flex flex-col gap-8">
-          <Field label="한마디로">
-            <RelationTypeField
-              value={values.relationType}
-              onChange={(v) => patch('relationType', v)}
+          <Field label="소속">
+            <AffiliationField
+              affiliations={affiliations}
+              value={values.affiliationChipId}
+              onChange={(chipId) => patch('affiliationChipId', chipId)}
+              onCreate={createAffiliation}
+              creating={affiliationMutation.isPending}
               hideLabel
             />
           </Field>

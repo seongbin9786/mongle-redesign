@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { DateWheel } from '@/components/person/date-wheel'
 import { ListField } from '@/components/person/list-field'
-import { RelationTypeField } from '@/components/person/relation-type-field'
+import { AffiliationField } from '@/components/person/affiliation-field'
 import {
   GENDER_OPTIONS,
   ProfileHero,
@@ -14,12 +14,18 @@ import { Input } from '@/components/ui/input'
 import { TagChip } from '@/components/ui/tag-chip'
 import { uploadImage } from '@/lib/api/images'
 import { featureEvents, trackFeature } from '@/lib/analytics'
-import type { PersonRequest } from '@/apis/generated/mongle-api.schemas'
+import type {
+  ChipResponse,
+  PersonRequest,
+} from '@/apis/generated/mongle-api.schemas'
 import { validatePersonForm } from '@/lib/person-validation'
 
 export function PersonEditForm({
   initialValues,
   relationTags,
+  affiliations,
+  onCreateAffiliation,
+  creatingAffiliation = false,
   pending = false,
   onSubmit,
   onDelete,
@@ -27,6 +33,9 @@ export function PersonEditForm({
 }: {
   initialValues: PersonFormValues
   relationTags: Array<{ id: number; label: string; color?: string | null }>
+  affiliations: ChipResponse[]
+  onCreateAffiliation?: (label: string, parentId: number | null) => void
+  creatingAffiliation?: boolean
   pending?: boolean
   onSubmit: (request: PersonRequest) => void
   onDelete: () => void
@@ -196,10 +205,13 @@ export function PersonEditForm({
         </h2>
         <div className="flex flex-col gap-6">
           <div>
-            <p className="mb-3 text-xs font-semibold">한마디로</p>
-            <RelationTypeField
-              value={values.relationType}
-              onChange={(value) => patch('relationType', value)}
+            <p className="mb-3 text-xs font-semibold">소속</p>
+            <AffiliationField
+              affiliations={affiliations}
+              value={values.affiliationChipId}
+              onChange={(chipId) => patch('affiliationChipId', chipId)}
+              onCreate={onCreateAffiliation}
+              creating={creatingAffiliation}
               hideLabel
             />
           </div>

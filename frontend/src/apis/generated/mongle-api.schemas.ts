@@ -72,10 +72,10 @@ export interface PersonRequest {
    */
   gender?: PersonRequestGender
   /**
-   * 관계 유형 자유 서술(선택).
+   * 소속 칩 id(선택). 한 사람당 하나. 루트·하위 어느 쪽이든 지정할 수 있다.
    * @nullable
    */
-  relationType?: string | null
+  affiliationChipId?: number | null
   /** 관계태그 칩 id 목록. 선택 개수 상한이 있다. */
   relationTagChipIds: number[]
   /** 좋아하는 것(선택). 취향 목록. */
@@ -95,6 +95,23 @@ export interface ErrorResponse {
   /** 사용자 노출용 에러 문구. */
   message: string
 }
+
+/**
+ * 소속 요약 참조. 하위 소속이면 parent 에 루트가 실린다. 색은 루트만 갖는다.
+ * @nullable
+ */
+export type AffiliationRef = {
+  /** 소속 칩 id. */
+  id: number
+  /** 소속 라벨. */
+  label: string
+  /**
+   * 표시 색상(hex). 하위 소속은 null.
+   * @nullable
+   */
+  color?: string | null
+  parent?: AffiliationRef
+} | null
 
 /**
  * 칩 요약 참조(id + 라벨). 소프트삭제된 칩도 라벨은 유지된다.
@@ -125,7 +142,7 @@ export const PersonResponseGender = {
 } as const
 
 /**
- * 인물 응답. 관계태그는 요약 참조로 실어 클라이언트가 재조회 없이 그린다.
+ * 인물 응답. 소속·관계태그는 요약 참조로 실어 클라이언트가 재조회 없이 그린다.
  */
 export interface PersonResponse {
   /** 인물 id. */
@@ -153,11 +170,7 @@ export interface PersonResponse {
    * @nullable
    */
   gender?: PersonResponseGender
-  /**
-   * 관계 유형(없을 수 있음).
-   * @nullable
-   */
-  relationType?: string | null
+  affiliation?: AffiliationRef
   /** 관계태그 칩 요약 참조 목록. */
   relationTags: ChipRef[]
   /** 좋아하는 것 목록. */
@@ -166,6 +179,8 @@ export interface PersonResponse {
   cautions: string[]
   /** 즐겨찾기 여부. */
   favorite: boolean
+  /** 함께 새긴 기록 수. '기록 많은 순' 정렬과 목록 표시가 함께 쓴다. */
+  recordCount: number
   /**
    * 등록 시각.
    * @nullable
@@ -253,7 +268,7 @@ export interface PersonRef {
 }
 
 /**
- * 칩 종류(카테고리·감정·날씨·관계태그).
+ * 칩 종류(카테고리·감정·날씨·관계태그·소속).
  */
 export type ChipCreateRequestType =
   (typeof ChipCreateRequestType)[keyof typeof ChipCreateRequestType]
@@ -264,25 +279,31 @@ export const ChipCreateRequestType = {
   WEATHER: 'WEATHER',
   CATEGORY: 'CATEGORY',
   RELATION_TAG: 'RELATION_TAG',
+  AFFILIATION: 'AFFILIATION',
 } as const
 
 /**
  * 개인 칩 생성 요청. 칩 종류와 라벨을 받는다.
  */
 export interface ChipCreateRequest {
-  /** 칩 종류(카테고리·감정·날씨·관계태그). */
+  /** 칩 종류(카테고리·감정·날씨·관계태그·소속). */
   type: ChipCreateRequestType
-  /** 칩에 표시할 라벨. 종류 안에서 중복될 수 없다. */
+  /** 칩에 표시할 라벨. 종류 안에서 중복될 수 없다(소속은 같은 상위 안에서만). */
   label: string
   /**
-   * 칩 표시 색상(hex). 관계태그 등 색상이 필요한 칩에서 사용한다.
+   * 칩 표시 색상(hex). 관계태그·루트 소속에서 사용한다. 하위 소속은 무시된다.
    * @nullable
    */
   color?: string | null
+  /**
+   * 상위 소속 칩 id. 소속에서만 쓸 수 있고 상위는 루트여야 한다(중첩 1단계).
+   * @nullable
+   */
+  parentId?: number | null
 }
 
 /**
- * 칩 종류(카테고리·감정·날씨·관계태그).
+ * 칩 종류(카테고리·감정·날씨·관계태그·소속).
  */
 export type ChipResponseType =
   (typeof ChipResponseType)[keyof typeof ChipResponseType]
@@ -293,6 +314,7 @@ export const ChipResponseType = {
   WEATHER: 'WEATHER',
   CATEGORY: 'CATEGORY',
   RELATION_TAG: 'RELATION_TAG',
+  AFFILIATION: 'AFFILIATION',
 } as const
 
 /**
@@ -301,8 +323,13 @@ export const ChipResponseType = {
 export interface ChipResponse {
   /** 칩 id. */
   id: number
-  /** 칩 종류(카테고리·감정·날씨·관계태그). */
+  /** 칩 종류(카테고리·감정·날씨·관계태그·소속). */
   type: ChipResponseType
+  /**
+   * 상위 소속 칩 id. 루트이거나 계층이 없는 종류면 null.
+   * @nullable
+   */
+  parentId?: number | null
   /** 칩 라벨. 소프트삭제된 칩도 과거 기록 표시를 위해 라벨은 유지된다. */
   label: string
   /**
@@ -401,13 +428,18 @@ export interface UserProfileResponse {
  * 칩 이름 변경 요청. 개인 칩만 변경할 수 있다.
  */
 export interface ChipRenameRequest {
-  /** 새 라벨. 종류 안에서 중복될 수 없다. */
+  /** 새 라벨. 종류 안에서 중복될 수 없다(소속은 같은 상위 안에서만). */
   label: string
   /**
-   * 칩 표시 색상(hex). null 이면 색상을 비운다.
+   * 칩 표시 색상(hex). null 이면 색상을 비운다. 하위 소속은 무시된다.
    * @nullable
    */
   color?: string | null
+  /**
+   * 상위 소속 칩 id. null 이면 루트로 올린다(소속 전용).
+   * @nullable
+   */
+  parentId?: number | null
 }
 
 /**
@@ -555,11 +587,7 @@ export interface PersonDetailResponse {
    * @nullable
    */
   gender?: PersonDetailResponseGender
-  /**
-   * 관계 유형(없을 수 있음).
-   * @nullable
-   */
-  relationType?: string | null
+  affiliation?: AffiliationRef
   /** 관계태그 칩 요약 참조 목록. */
   relationTags: ChipRef[]
   /** 좋아하는 것 목록. */
@@ -759,11 +787,11 @@ export interface RelationMapResponse {
 
 export type GetPersonsParams = {
   /**
-   * 정렬(NAME=가나다, RECENT=최근). 즐겨찾기는 항상 상단.
+   * 정렬(RECENT=마지막 만남, RECORD_COUNT=기록 많은 순, NAME=가나다). 즐겨찾기가 앞선다.
    */
   sort?: GetPersonsSort
   /**
-   * 이름 검색어(선택).
+   * 검색어(선택). 이름·소속·관계태그 라벨을 훑는다.
    */
   query?: string
 }
@@ -773,8 +801,9 @@ export type GetPersonsSort =
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const GetPersonsSort = {
-  NAME: 'NAME',
   RECENT: 'RECENT',
+  RECORD_COUNT: 'RECORD_COUNT',
+  NAME: 'NAME',
 } as const
 
 export type GetChipsParams = {
@@ -792,6 +821,7 @@ export const GetChipsType = {
   WEATHER: 'WEATHER',
   CATEGORY: 'CATEGORY',
   RELATION_TAG: 'RELATION_TAG',
+  AFFILIATION: 'AFFILIATION',
 } as const
 
 export type GetTimelineParams = {

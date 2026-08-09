@@ -18,6 +18,7 @@ declare module '@stackflow/config' {
     Main: { tab: MainTab; personCard?: string }
     Person: { personId: string; view?: PersonView }
     PersonNew: object
+    PeopleSearch: object
     PersonEdit: { personId: string }
     EventDetail: { eventId: string }
     Record: { personId?: string; eventId?: string }
@@ -73,6 +74,16 @@ export const stackConfig = defineConfig({
       name: 'PersonNew',
       route: {
         path: '/people/new',
+        defaultHistory: () =>
+          appDefaultHistory([
+            { activityName: 'Main', activityParams: { tab: 'people' } },
+          ]),
+      },
+    },
+    {
+      name: 'PeopleSearch',
+      route: {
+        path: '/people/search',
         defaultHistory: () =>
           appDefaultHistory([
             { activityName: 'Main', activityParams: { tab: 'people' } },

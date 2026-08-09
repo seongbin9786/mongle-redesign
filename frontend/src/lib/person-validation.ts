@@ -5,9 +5,6 @@ const todayIso = () => new Date().toISOString().slice(0, 10)
 export function validatePersonForm(data: PersonRequest): string | null {
   if (!data.name.trim()) return '이름을 입력해 주세요.'
   if (data.name.trim().length > 20) return '최대 20자까지 쓸 수 있어요.'
-  if (data.relationType && data.relationType.length > 10) {
-    return '최대 10자까지 쓸 수 있어요.'
-  }
   if (data.relationTagChipIds.length > 10) {
     return '관계 태그는 최대 10개까지 담을 수 있어요.'
   }

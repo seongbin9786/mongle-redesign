@@ -109,7 +109,7 @@ export const seed = () => {
 }
 
 /**
- * 내 인물 목록을 정렬·검색해 반환한다. 어느 정렬이든 즐겨찾기는 항상 상단 그룹으로 뜬다. query 로 이름 검색을 한다.
+ * 내 인물 목록을 정렬·검색해 반환한다. 어느 정렬이든 즐겨찾기가 앞선다. query 는 이름·소속·관계태그 라벨을 함께 훑는다.
  * @summary 인물 디렉토리 조회
  */
 export const getPersons = (params?: GetPersonsParams) => {

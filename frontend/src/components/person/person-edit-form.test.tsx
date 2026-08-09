@@ -3,6 +3,20 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { PersonEditForm } from '@/components/person/person-edit-form'
 import { personToFormValues } from '@/components/person/person-form'
+import type { ChipResponse } from '@/apis/generated/mongle-api.schemas'
+
+const affiliations: ChipResponse[] = [
+  {
+    id: 20,
+    type: 'AFFILIATION',
+    parentId: null,
+    label: '학교',
+    color: '#0EA5E9',
+    personal: true,
+    order: 0,
+    default: false,
+  },
+]
 
 describe('PersonEditForm', () => {
   it('groups profile fields and saves the edited values', async () => {
@@ -14,10 +28,11 @@ describe('PersonEditForm', () => {
         <PersonEditForm
           initialValues={personToFormValues({
             name: '민지',
-            relationType: '친구',
+            affiliationChipId: 20,
             favorite: true,
           })}
           relationTags={[{ id: 1, label: '대학교' }]}
+          affiliations={affiliations}
           onSubmit={onSubmit}
           onDelete={vi.fn()}
         />
@@ -48,7 +63,7 @@ describe('PersonEditForm', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         name: '민지 수정',
-        relationType: '친구',
+        affiliationChipId: 20,
         relationTagChipIds: [1],
         favorite: true,
       }),
@@ -63,6 +78,7 @@ describe('PersonEditForm', () => {
       <PersonEditForm
         initialValues={personToFormValues({ name: '민지' })}
         relationTags={[]}
+        affiliations={affiliations}
         onSubmit={vi.fn()}
         onDelete={onDelete}
       />,
@@ -78,6 +94,7 @@ describe('PersonEditForm', () => {
       <PersonEditForm
         initialValues={personToFormValues({ name: '민지' })}
         relationTags={[]}
+        affiliations={affiliations}
         onSubmit={vi.fn()}
         onDelete={vi.fn()}
       />,
