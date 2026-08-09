@@ -18,6 +18,12 @@ import { PageTitle } from '@/components/ui/page-title'
 import { StatusMessage } from '@/components/ui/status-message'
 import { featureEvents, trackFeature } from '@/lib/analytics'
 import {
+  getOrbitDepth,
+  setOrbitDepth,
+  subscribeOrbitDepth,
+} from '@/lib/home-orbit-depth'
+import type { OrbitDepthMode } from '@/lib/home-orbit-depth'
+import {
   getDefaultHomePeriod,
   isPersonInHomePeriod,
   subscribeDefaultHomePeriod,
@@ -38,6 +44,9 @@ export function HomeTab() {
   const [period, setPeriod] = useState<HomePeriod>(() => getDefaultHomePeriod())
   useEffect(() => subscribeDefaultHomePeriod(setPeriod), [])
   const [selectedTagId, setSelectedTagId] = useState<number | null>(null)
+  // 거리감 표현은 화면 위 토글로 바꾸고 다음 방문에도 유지한다.
+  const [depth, setDepth] = useState<OrbitDepthMode>(() => getOrbitDepth())
+  useEffect(() => subscribeOrbitDepth(setDepth), [])
   // 홈은 지도 하나만 보여준다 — 리스트로 훑는 일은 사람 탭이 전담한다(mustpass people-directory).
 
   const mapQuery = useQuery(homeQuery.relationMap())
@@ -164,6 +173,14 @@ export function HomeTab() {
               nodes={graphNodes}
               edges={visibleEdges}
               selectedTagId={selectedTagId}
+              depth={depth}
+              onToggleDepth={() => {
+                const next = depth === 'tilt' ? 'focus' : 'tilt'
+                setOrbitDepth(next)
+                void trackFeature(featureEvents.homeOrbitDepthChanged, {
+                  depth: next,
+                })
+              }}
               onSelectPerson={openPersonCard}
             >
               {isEmpty ? (

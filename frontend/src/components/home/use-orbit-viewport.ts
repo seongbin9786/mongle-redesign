@@ -1,15 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 
 // 궤도 지도의 줌·팬. 홈은 세로 스크롤이 없으므로(스크롤 대신 줌으로 본다)
 // 지도가 스스로 컨테이너에 맞춰 들어가고, 더 보고 싶으면 확대해서 본다.
 //
-// 배율은 '컨테이너에 딱 맞는 배율(fit) × 사용자 배수(zoom)'로 나눠 둔다.
-// 사람이 늘어 월드가 커지거나 화면이 회전해도 fit만 다시 계산되면 되고,
-// 사용자가 만진 배수는 그대로 남는다.
+// 배율은 '기본 배율(base) × 사용자 배수(zoom)'로 나눠 둔다. 사람이 늘어
+// 월드가 커지거나 화면이 회전해도 base만 다시 계산되면 되고, 사용자가 만진
+// 배수는 그대로 남는다.
 
-/** fit이 이미 전체를 담으므로 그보다 축소할 이유가 없다. */
-const MIN_ZOOM = 1
 const MAX_ZOOM = 4
+/**
+ * 기본 배율의 하한. 링이 7단이라 '전부 담기'만 따르면 폰 폭에서 배율이
+ * 0.45까지 떨어져 아무것도 읽히지 않는다. 사람이 읽히는 크기를 먼저 지키고,
+ * 다 안 들어오면 밖으로 넘긴다(축소해서 볼 수 있다).
+ */
+const MIN_BASE_SCALE = 0.72
+/** 사람이 적어 지도가 텅 비면 과하게 확대되지 않게 두는 상한. */
+const MAX_BASE_SCALE = 1.25
 /** 이만큼 넘게 움직였으면 탭이 아니라 팬으로 본다(노드 클릭 억제). */
 const PAN_THRESHOLD_PX = 6
 /** 가장자리에서 살짝 더 끌 수 있게 두는 여유. 완전히 고정되면 뻣뻣하다. */
@@ -21,41 +33,63 @@ type View = { zoom: number; tx: number; ty: number }
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
 
-export function useOrbitViewport(worldRadius: number) {
+export function useOrbitViewport(worldRadius: number, focusRadius: number) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
   const [view, setView] = useState<View>({ zoom: 1, tx: 0, ty: 0 })
 
-  useEffect(() => {
+  // 첫 크기는 레이아웃 직후 직접 잰다. ResizeObserver의 첫 통지만 믿으면
+  // 마운트 시점에 따라 0x0으로 시작해 배율이 1에 묶인 채 남는 경우가 있다.
+  // 같은 값이면 상태를 갈아끼우지 않아 관찰→렌더→관찰 루프도 생기지 않는다.
+  useLayoutEffect(() => {
     const element = containerRef.current
     if (!element) return
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
-      setBox({ width, height })
-    })
+    const measure = () => {
+      const { width, height } = element.getBoundingClientRect()
+      setBox((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { width, height },
+      )
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
 
   const worldSize = worldRadius * 2
-  const fitScale =
-    box.width > 0 && box.height > 0
-      ? Math.min(box.width, box.height) / worldSize
-      : 1
-  const scale = fitScale * view.zoom
+  const shorterSide =
+    box.width > 0 && box.height > 0 ? Math.min(box.width, box.height) : 0
+  // 기본 배율은 '사람이 있는 곳까지'를 담고, 읽히는 크기를 하한으로 지킨다.
+  const baseScale = shorterSide
+    ? clamp(shorterSide / (focusRadius * 2), MIN_BASE_SCALE, MAX_BASE_SCALE)
+    : 1
+  // 바깥 빈 링까지 전부 담기는 배율. 여기까지는 축소할 수 있어야 한다.
+  const wholeScale = shorterSide ? shorterSide / worldSize : 1
+  const minZoom = Math.min(1, wholeScale / baseScale)
+  const scale = baseScale * view.zoom
+  /** 기본 배율에서 월드가 화면 밖으로 나가는지 — '전체 보기'를 상시 띄울 조건. */
+  const overflows = wholeScale < baseScale - 0.001
 
   // 포인터 핸들러는 이벤트마다 최신 값이 필요한데 클로저는 렌더 시점에 얼어붙는다.
   // 상태를 ref로 미러링해 핸들러가 항상 지금 값을 읽게 한다.
-  const latest = useRef({ fitScale, worldSize, box, view })
-  latest.current = { fitScale, worldSize, box, view }
+  const latest = useRef({ baseScale, minZoom, worldSize, box, view })
+  latest.current = { baseScale, minZoom, worldSize, box, view }
 
   const clampView = useCallback((next: View): View => {
-    const { fitScale: fit, worldSize: size, box: viewport } = latest.current
-    const zoom = clamp(next.zoom, MIN_ZOOM, MAX_ZOOM)
-    const painted = size * fit * zoom
-    const slack = zoom > 1 ? PAN_SLACK_PX : 0
-    const limitX = Math.max(0, (painted - viewport.width) / 2) + slack
-    const limitY = Math.max(0, (painted - viewport.height) / 2) + slack
+    const {
+      baseScale: base,
+      minZoom: floor,
+      worldSize: size,
+      box: viewport,
+    } = latest.current
+    const zoom = clamp(next.zoom, floor, MAX_ZOOM)
+    const painted = size * base * zoom
+    const overflowX = Math.max(0, (painted - viewport.width) / 2)
+    const overflowY = Math.max(0, (painted - viewport.height) / 2)
+    const limitX = overflowX + (overflowX > 0 ? PAN_SLACK_PX : 0)
+    const limitY = overflowY + (overflowY > 0 ? PAN_SLACK_PX : 0)
     return {
       zoom,
       tx: clamp(next.tx, -limitX, limitX),
@@ -70,7 +104,8 @@ export function useOrbitViewport(worldRadius: number) {
   const zoomFrom = useCallback(
     (nextZoom: number, worldAnchor: Point, screenAnchor: Point) => {
       const nextScale =
-        latest.current.fitScale * clamp(nextZoom, MIN_ZOOM, MAX_ZOOM)
+        latest.current.baseScale *
+        clamp(nextZoom, latest.current.minZoom, MAX_ZOOM)
       setView(
         clampView({
           zoom: nextZoom,
@@ -83,7 +118,7 @@ export function useOrbitViewport(worldRadius: number) {
   )
 
   const worldPointAt = (from: View, screenPoint: Point): Point => {
-    const currentScale = latest.current.fitScale * from.zoom
+    const currentScale = latest.current.baseScale * from.zoom
     return {
       x: (screenPoint.x - from.tx) / currentScale,
       y: (screenPoint.y - from.ty) / currentScale,
@@ -210,8 +245,11 @@ export function useOrbitViewport(worldRadius: number) {
     containerRef,
     scale,
     translate: { x: view.tx, y: view.ty },
-    /** 확대·이동한 상태인지 — '전체 보기' 버튼 노출 조건. */
-    adjusted: view.zoom !== 1 || view.tx !== 0 || view.ty !== 0,
+    /** 사용자가 확대·이동한 상태인지 — 기본 보기로 되돌릴 조건. */
+    moved: view.zoom !== 1 || view.tx !== 0 || view.ty !== 0,
+    /** 지금 화면 밖에 남은 궤도가 있는지 — '전체 보기'를 띄울 조건. */
+    canZoomOut: overflows || view.zoom > minZoom + 0.001,
+    zoomOut: () => setView({ zoom: minZoom, tx: 0, ty: 0 }),
     /** 방금 끝난 제스처가 팬이었는지. 노드 클릭 억제에 쓴다. */
     pannedRef: panned,
     reset,

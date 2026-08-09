@@ -95,10 +95,13 @@ const meta = {
     nodes,
     edges,
     selectedTagId: null,
+    depth: 'tilt' as const,
+    onToggleDepth: () => {},
     onSelectPerson: () => {},
   },
   render: (args) => {
     const [selectedTagId, setSelectedTagId] = useState<number | null>(null)
+    const [depth, setDepth] = useState(args.depth)
     return (
       <div className="mx-auto max-w-[430px]">
         <div className="mb-3 flex gap-2">
@@ -126,6 +129,10 @@ const meta = {
           <RelationOrbitMap
             {...args}
             selectedTagId={selectedTagId}
+            depth={depth}
+            onToggleDepth={() =>
+              setDepth((current) => (current === 'tilt' ? 'focus' : 'tilt'))
+            }
             onSelectPerson={() => {}}
           />
         </Frame>
@@ -138,7 +145,13 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 
-export const Normal: Story = {}
+/** 기본 — 궤도판을 눕혀 바깥이 지평선으로 물러난다. 사람은 세워 둔다. */
+export const Tilt: Story = {}
+
+/** 초점이 '나'에 맞고 바깥이 아웃포커스로 풀린다. 화면 위 토글로 바꾼다. */
+export const Focus: Story = {
+  args: { depth: 'focus' },
+}
 
 export const Distant: Story = {
   args: {
@@ -149,24 +162,24 @@ export const Distant: Story = {
   },
 }
 
-/** 인원이 한 링에 몰리면 그 링의 지름이 인원을 담을 만큼 넓어진다. */
-export const CrowdedRing: Story = {
+/**
+ * 사람이 몰리면 한 줄에 밀어 넣지 않고 여러 줄로 앉히고(안쪽 줄일수록 최근),
+ * 이웃이 가까울수록 얼굴이 물러서고 이름이 접힌다. 확대하면 다시 나타난다.
+ */
+export const Crowded: Story = {
   args: {
-    nodes: Array.from({ length: 22 }, (_, index) =>
-      person(100 + index, `친구${index + 1}`, 2 + (index % 5), 'friend'),
+    nodes: Array.from({ length: 40 }, (_, index) =>
+      person(100 + index, `친구${index + 1}`, 1 + index * 2, 'friend'),
     ),
     edges: [],
   },
 }
 
 export const FamilyOnlyDimmed: Story = {
+  args: { selectedTagId: TAGS.family.id },
   render: (args) => (
     <Frame>
-      <RelationOrbitMap
-        {...args}
-        selectedTagId={TAGS.family.id}
-        onSelectPerson={() => {}}
-      />
+      <RelationOrbitMap {...args} onSelectPerson={() => {}} />
     </Frame>
   ),
 }
