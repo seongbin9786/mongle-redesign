@@ -193,19 +193,6 @@ export function orbitPolar(radius: number, angleDeg: number) {
   return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) }
 }
 
-/** 점선 호(멀어진 관계 표시용). 노드가 실제로 앉은 반경 위에 그린다. */
-export function orbitArcPath(
-  radius: number,
-  startAngleDeg: number,
-  endAngleDeg: number,
-) {
-  const start = orbitPolar(radius, startAngleDeg)
-  const end = orbitPolar(radius, endAngleDeg)
-  const to = (p: { x: number; y: number }) =>
-    `${p.x.toFixed(1)} ${p.y.toFixed(1)}`
-  return `M ${to(start)} A ${radius} ${radius} 0 0 1 ${to(end)}`
-}
-
 /**
  * id에서 뽑은 고정 흔들림(-0.5~0.5). 각도를 딱 균등하게 놓으면 얼굴이
  * 목걸이처럼 박혀 보인다. 난수가 아니라 id의 함수라 배치는 항상 재현된다.
