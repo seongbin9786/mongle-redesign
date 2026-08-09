@@ -54,6 +54,13 @@ export const ORBIT_GEOMETRY = {
   maxDays: 1460,
   /** 구간이 아무리 짧아도 이만큼은 벌린다(아바타 + 이름 높이). */
   minBandGap: 46,
+  /**
+   * 구간이 아무리 길어도 이만큼까지만 벌린다 — 바닥(minBandGap)과 짝을 이루는 천장.
+   * '3년' 구간 하나가 축 예산(maxDays)의 절반(365~1095일 = 730일)을 차지해서, 천장이
+   * 없으면 그 한 구간이 축의 절반을 먹고 안쪽 다섯 구간은 전부 바닥값으로 뭉친다
+   * (7일과 1년 사이가 눈금 다섯 개 등간격으로 보이고, 1년~3년만 그 다섯 배로 벌어진다).
+   */
+  maxBandGap: 92,
   /** 노드 하나가 둘레에서 차지해야 할 최소 호 길이. */
   nodeArc: 58,
   /** 붐빌 때 축 전체를 늘리는 한도. 남은 붐빔은 노드 크기·이름이 흡수한다. */
@@ -87,21 +94,24 @@ export type OrbitBand = {
 }
 
 /**
- * 구간 두께 = max(최소 간격, 기간 비례).
+ * 구간 두께 = 기간 비례를 [최소 간격, 최대 간격]으로 자른 값.
  *
- * 축 전체를 눌러 담으면(로그·멱함수) 붙어야 할 곳까지 눌린다. 대신 자리가
- * 있는 구간은 기간에 그대로 비례해 벌리고, 그대로 두면 무너질 구간(0~7일 등)
- * 에만 바닥을 깔아 준다. 구간 '안'에서는 여전히 경과일에 선형이라
+ * 축 전체를 눌러 담으면(로그·멱함수) 붙어야 할 곳까지 눌린다. 대신 기간에 그대로
+ * 비례해 벌리되, 그대로 두면 무너질 구간(0~7일 등)에는 바닥을, 혼자 축을 먹는
+ * 구간(1년~3년)에는 천장을 둔다. 구간 '안'에서는 여전히 경과일에 선형이라
  * 3일과 6일은 정확히 두 배 떨어진다.
  */
 export function orbitBands(rings: OrbitRing[], stretch = 1): OrbitBand[] {
-  const { span, maxDays, minBandGap, innerRadius } = ORBIT_GEOMETRY
+  const { span, maxDays, minBandGap, maxBandGap, innerRadius } = ORBIT_GEOMETRY
   let cursor = innerRadius
   return rings.map((ring, index) => {
     const low = index === 0 ? 0 : rings[index - 1].maxDays
     const high = Number.isFinite(ring.maxDays) ? ring.maxDays : maxDays
     const proportional = (span * stretch * (high - low)) / maxDays
-    const thickness = Math.max(minBandGap * stretch, proportional)
+    const thickness = Math.min(
+      maxBandGap * stretch,
+      Math.max(minBandGap * stretch, proportional),
+    )
     const band = { low, high, inner: cursor, outer: cursor + thickness }
     cursor += thickness
     return band

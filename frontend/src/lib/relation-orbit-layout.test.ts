@@ -81,12 +81,26 @@ describe('orbitBands', () => {
   })
 
   it('자리가 있는 구간은 기간에 비례해 벌어진다', () => {
-    // 3년 구간(365~1095일, 730일)은 최소 간격이 아니라 비례가 이긴다.
-    const long = bands[5]
-    const expected =
-      (ORBIT_GEOMETRY.span * (1095 - 365)) / ORBIT_GEOMETRY.maxDays
-    expect(long.outer - long.inner).toBeCloseTo(expected, 5)
+    // 두 눈금 사이가 250일이면 비례값(≈74)이 바닥·천장 사이라 그대로 쓴다.
+    const [narrow, wide] = orbitBands([
+      { label: '가까움', maxDays: 50 },
+      { label: '멂', maxDays: 300 },
+    ])
+    const expected = (ORBIT_GEOMETRY.span * 250) / ORBIT_GEOMETRY.maxDays
     expect(expected).toBeGreaterThan(ORBIT_GEOMETRY.minBandGap)
+    expect(expected).toBeLessThan(ORBIT_GEOMETRY.maxBandGap)
+    expect(wide.outer - wide.inner).toBeCloseTo(expected, 5)
+    expect(narrow.outer - narrow.inner).toBe(ORBIT_GEOMETRY.minBandGap)
+  })
+
+  it('긴 구간도 최대 간격을 넘지 않는다', () => {
+    // 3년 구간(365~1095일)만 축 예산의 절반을 차지한다 — 천장이 없으면 이 한 칸이
+    // 안쪽 다섯 칸을 합친 것보다 넓어진다.
+    const long = bands[5]
+    const proportional =
+      (ORBIT_GEOMETRY.span * (1095 - 365)) / ORBIT_GEOMETRY.maxDays
+    expect(proportional).toBeGreaterThan(ORBIT_GEOMETRY.maxBandGap)
+    expect(long.outer - long.inner).toBe(ORBIT_GEOMETRY.maxBandGap)
   })
 
   it('stretch는 축 전체를 같은 비율로 늘린다', () => {

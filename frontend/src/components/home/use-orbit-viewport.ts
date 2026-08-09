@@ -22,8 +22,12 @@ const MAX_ZOOM = 4
 const MIN_BASE_SCALE = 0.72
 /** 사람이 적어 지도가 텅 비면 과하게 확대되지 않게 두는 상한. */
 const MAX_BASE_SCALE = 1.25
-/** 이만큼 넘게 움직였으면 탭이 아니라 팬으로 본다(노드 클릭 억제). */
-const PAN_THRESHOLD_PX = 6
+/**
+ * 이만큼 넘게 움직였으면 탭이 아니라 팬으로 본다(노드 클릭 억제).
+ * 관계 카드 시트의 '바깥 탭 = 닫기'도 같은 기준을 써야 한다 — 기준이 어긋나면
+ * 지도를 끄는 손짓이 시트에게는 바깥 탭으로 읽혀 시트가 닫힌다.
+ */
+export const PAN_THRESHOLD_PX = 6
 /** 가장자리에서 살짝 더 끌 수 있게 두는 여유. 완전히 고정되면 뻣뻣하다. */
 const PAN_SLACK_PX = 24
 
@@ -69,8 +73,6 @@ export function useOrbitViewport(worldRadius: number, focusRadius: number) {
   const wholeScale = shorterSide ? shorterSide / worldSize : 1
   const minZoom = Math.min(1, wholeScale / baseScale)
   const scale = baseScale * view.zoom
-  /** 기본 배율에서 월드가 화면 밖으로 나가는지 — '전체 보기'를 상시 띄울 조건. */
-  const overflows = wholeScale < baseScale - 0.001
 
   // 포인터 핸들러는 이벤트마다 최신 값이 필요한데 클로저는 렌더 시점에 얼어붙는다.
   // 상태를 ref로 미러링해 핸들러가 항상 지금 값을 읽게 한다.
@@ -247,8 +249,12 @@ export function useOrbitViewport(worldRadius: number, focusRadius: number) {
     translate: { x: view.tx, y: view.ty },
     /** 사용자가 확대·이동한 상태인지 — 기본 보기로 되돌릴 조건. */
     moved: view.zoom !== 1 || view.tx !== 0 || view.ty !== 0,
-    /** 지금 화면 밖에 남은 궤도가 있는지 — '전체 보기'를 띄울 조건. */
-    canZoomOut: overflows || view.zoom > minZoom + 0.001,
+    /**
+     * 아직 더 축소할 여지가 있는지. '월드가 넘치는지'로 재면 전체 보기를 누른
+     * 뒤에도 조건이 참으로 남아 버튼이 같은 자리에 얼어붙는다 — 지금 배율이
+     * 하한(minZoom)에 닿았는지로 재야 전체 보기 ↔ 기본 보기로 오간다.
+     */
+    canZoomOut: view.zoom > minZoom + 0.001,
     zoomOut: () => setView({ zoom: minZoom, tx: 0, ty: 0 }),
     /** 방금 끝난 제스처가 팬이었는지. 노드 클릭 억제에 쓴다. */
     pannedRef: panned,
