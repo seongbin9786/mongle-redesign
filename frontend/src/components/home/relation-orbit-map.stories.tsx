@@ -49,24 +49,25 @@ function person(
   }
 }
 
+// 7단 링(7일 / 1달 / 3달 / 올해 / 1년 / 3년 / 그 이전)을 골고루 밟도록 흩었다.
 const nodes: PersonNode[] = [
-  person(1, '김도윤', 3, 'friend', { favorite: true }),
+  person(1, '김도윤', 1, 'friend', { favorite: true }),
   person(2, '이서연', 6, 'family'),
   person(3, '정해인', 11, 'friend'),
   person(4, '박민준', 26, 'work'),
   person(5, '한지아', 33, 'friend'),
   person(6, '윤재원', 41, 'friend'),
-  person(7, '최수현', 52, 'work'),
+  person(7, '최수현', 88, 'work'),
   person(8, '임나래', 96, 'work'),
   person(9, '오세훈', 124, 'friend'),
   person(10, '강다희', 151, 'friend'),
-  person(11, '문가영', 178, 'family'),
-  person(12, '류진우', 262, 'work'),
-  person(13, '황지민', 305, 'friend', {
-    intimacy: { status: 'DISTANT', daysSinceLastMeet: 305 },
+  person(11, '문가영', 300, 'family'),
+  person(12, '류진우', 340, 'work'),
+  person(13, '황지민', 700, 'friend', {
+    intimacy: { status: 'DISTANT', daysSinceLastMeet: 700 },
   }),
-  person(14, '신동엽', 342, 'work', {
-    intimacy: { status: 'DISTANT', daysSinceLastMeet: 342 },
+  person(14, '신동엽', 1400, 'work', {
+    intimacy: { status: 'DISTANT', daysSinceLastMeet: 1400 },
   }),
   person(15, '홍예지', null, 'friend'),
   // 태그가 없는 사람은 그룹 색 없이 무채색 테두리로 남는다.
@@ -78,6 +79,13 @@ const edges: RelationEdge[] = nodes.map((node) => ({
   distant: node.intimacy.status === 'DISTANT',
 }))
 
+// 지도는 부모가 준 높이를 채우므로 스토리에서도 화면만 한 상자를 준다.
+function Frame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mx-auto h-[560px] w-full max-w-[430px]">{children}</div>
+  )
+}
+
 const meta = {
   title: 'Home/RelationOrbitMap',
   component: RelationOrbitMap,
@@ -86,11 +94,14 @@ const meta = {
     me,
     nodes,
     edges,
-    selectedTagIds: [],
+    selectedTagId: null,
+    depth: 'tilt' as const,
+    onToggleDepth: () => {},
     onSelectPerson: () => {},
   },
   render: (args) => {
-    const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
+    const [selectedTagId, setSelectedTagId] = useState<number | null>(null)
+    const [depth, setDepth] = useState(args.depth)
     return (
       <div className="mx-auto max-w-[430px]">
         <div className="mb-3 flex gap-2">
@@ -99,29 +110,32 @@ const meta = {
               key={tag.id}
               type="button"
               onClick={() =>
-                setSelectedTagIds((current) =>
-                  current.includes(tag.id)
-                    ? current.filter((id) => id !== tag.id)
-                    : [...current, tag.id],
+                setSelectedTagId((current) =>
+                  current === tag.id ? null : tag.id,
                 )
               }
               className="rounded-full border border-border px-3 py-1 text-xs"
               style={{
-                backgroundColor: selectedTagIds.includes(tag.id)
-                  ? tag.color
-                  : undefined,
-                color: selectedTagIds.includes(tag.id) ? '#fff' : undefined,
+                backgroundColor:
+                  selectedTagId === tag.id ? tag.color : undefined,
+                color: selectedTagId === tag.id ? '#fff' : undefined,
               }}
             >
               {tag.label}
             </button>
           ))}
         </div>
-        <RelationOrbitMap
-          {...args}
-          selectedTagIds={selectedTagIds}
-          onSelectPerson={() => {}}
-        />
+        <Frame>
+          <RelationOrbitMap
+            {...args}
+            selectedTagId={selectedTagId}
+            depth={depth}
+            onToggleDepth={() =>
+              setDepth((current) => (current === 'tilt' ? 'focus' : 'tilt'))
+            }
+            onSelectPerson={() => {}}
+          />
+        </Frame>
       </div>
     )
   },
@@ -131,7 +145,13 @@ export default meta
 
 type Story = StoryObj<typeof meta>
 
-export const Normal: Story = {}
+/** 기본 — 궤도판을 눕혀 바깥이 지평선으로 물러난다. 사람은 세워 둔다. */
+export const Tilt: Story = {}
+
+/** 초점이 '나'에 맞고 바깥이 아웃포커스로 풀린다. 화면 위 토글로 바꾼다. */
+export const Focus: Story = {
+  args: { depth: 'focus' },
+}
 
 export const Distant: Story = {
   args: {
@@ -142,31 +162,45 @@ export const Distant: Story = {
   },
 }
 
+/**
+ * 사람이 몰리면 한 줄에 밀어 넣지 않고 여러 줄로 앉히고(안쪽 줄일수록 최근),
+ * 이웃이 가까울수록 얼굴이 물러서고 이름이 접힌다. 확대하면 다시 나타난다.
+ */
+export const Crowded: Story = {
+  args: {
+    nodes: Array.from({ length: 40 }, (_, index) =>
+      person(100 + index, `친구${index + 1}`, 1 + index * 2, 'friend'),
+    ),
+    edges: [],
+  },
+}
+
 export const FamilyOnlyDimmed: Story = {
+  args: { selectedTagId: TAGS.family.id },
   render: (args) => (
-    <RelationOrbitMap
-      {...args}
-      selectedTagIds={[TAGS.family.id]}
-      onSelectPerson={() => {}}
-    />
+    <Frame>
+      <RelationOrbitMap {...args} onSelectPerson={() => {}} />
+    </Frame>
   ),
 }
 
 export const Empty: Story = {
   args: { nodes: [], edges: [] },
   render: (args) => (
-    <RelationOrbitMap {...args} onSelectPerson={() => {}}>
-      <div className="absolute inset-0 z-30 flex flex-col items-center px-8 pt-[82%] text-center">
-        <EmptyState>
-          <EmptyStateTitle>아직 기록한 사람이 없어요</EmptyStateTitle>
-          <EmptyStateDescription>
-            첫 사람을 추가해 관계를 남겨보세요.
-          </EmptyStateDescription>
-          <EmptyStateAction>
-            <Button size="cta">＋ 사람 추가</Button>
-          </EmptyStateAction>
-        </EmptyState>
-      </div>
-    </RelationOrbitMap>
+    <Frame>
+      <RelationOrbitMap {...args} onSelectPerson={() => {}}>
+        <div className="absolute inset-x-0 bottom-2 z-30 flex flex-col items-center px-8 text-center">
+          <EmptyState>
+            <EmptyStateTitle>아직 기록한 사람이 없어요</EmptyStateTitle>
+            <EmptyStateDescription>
+              첫 사람을 추가해 관계를 남겨보세요.
+            </EmptyStateDescription>
+            <EmptyStateAction>
+              <Button size="cta">＋ 사람 추가</Button>
+            </EmptyStateAction>
+          </EmptyState>
+        </div>
+      </RelationOrbitMap>
+    </Frame>
   ),
 }

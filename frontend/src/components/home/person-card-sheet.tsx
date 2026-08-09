@@ -1,4 +1,3 @@
-import { Moon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { PersonNode } from '@/apis/generated/mongle-api.schemas'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -19,14 +18,12 @@ import {
 // 데이터 출처가 없어 꾸며내지 않는다(백엔드 집계 API가 생기면 추가).
 export function PersonCardSheet({
   person,
-  distant,
   container,
   onOpenChange,
   onRecord,
   onProfile,
 }: {
   person: PersonNode | null
-  distant: boolean
   /** 시트를 그릴 Main 화면 노드. body로 새면 위에 쌓인 activity까지 따라 올라온다. */
   container?: HTMLElement | null
   onOpenChange: (open: boolean) => void
@@ -126,29 +123,11 @@ export function PersonCardSheet({
                     </TagChip>
                   ))}
                 </DrawerTitle>
-                <p className="mt-0.5 text-caption text-muted-foreground">
-                  {shown.firstMetDate
-                    ? `알고 지낸 ${knownDuration} · 함께한 기록 ${shown.recordCount}개`
-                    : `함께한 기록 ${shown.recordCount}개`}
-                </p>
               </div>
             </div>
 
-            {distant ? (
-              <div className="mt-4 flex items-start gap-3 rounded-xl border border-warm/20 bg-warm/7 px-3.5 py-3">
-                <Moon className="mt-0.5 size-4.5 shrink-0 text-warm" />
-                <div>
-                  <p className="text-label font-semibold text-foreground">
-                    조금 조용해진 관계예요
-                  </p>
-                  <p className="mt-0.5 text-caption leading-relaxed text-muted-foreground">
-                    가벼운 안부 대신, 오늘의 마음을 기록으로 남겨보는 건
-                    어떨까요?
-                  </p>
-                </div>
-              </div>
-            ) : null}
-
+            {/* 요약 줄(알고 지낸 시간·기록 수)은 두지 않는다 — 바로 아래 3칸이
+                같은 값을 더 크게 보여줘서 이름 밑에 겹쳐 읽히기만 한다. */}
             <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="rounded-xl bg-secondary px-3 py-2.5">
                 <span className="block text-caption text-muted-foreground">
