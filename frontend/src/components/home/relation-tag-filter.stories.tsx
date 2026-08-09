@@ -15,21 +15,14 @@ const meta = {
   title: 'Home/RelationTagFilter',
   component: RelationTagFilter,
   tags: ['autodocs'],
-  args: { tags, selectedIds: [], onToggle: () => {}, onClear: () => {} },
+  args: { tags, selectedId: null, onSelect: () => {} },
   render: (args) => {
-    const [selectedIds, setSelectedIds] = useState<number[]>([])
+    const [selectedId, setSelectedId] = useState<number | null>(args.selectedId)
     return (
       <RelationTagFilter
         {...args}
-        selectedIds={selectedIds}
-        onToggle={(tagId) =>
-          setSelectedIds((current) =>
-            current.includes(tagId)
-              ? current.filter((id) => id !== tagId)
-              : [...current, tagId],
-          )
-        }
-        onClear={() => setSelectedIds([])}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
       />
     )
   },
@@ -41,23 +34,6 @@ type Story = StoryObj<typeof meta>
 
 export const NoneSelected: Story = {}
 
-export const MultiSelected: Story = {
-  args: { selectedIds: [1, 3] },
-  render: (args) => {
-    const [selectedIds, setSelectedIds] = useState<number[]>([1, 3])
-    return (
-      <RelationTagFilter
-        {...args}
-        selectedIds={selectedIds}
-        onToggle={(tagId) =>
-          setSelectedIds((current) =>
-            current.includes(tagId)
-              ? current.filter((id) => id !== tagId)
-              : [...current, tagId],
-          )
-        }
-        onClear={() => setSelectedIds([])}
-      />
-    )
-  },
+export const OneSelected: Story = {
+  args: { selectedId: 3 },
 }

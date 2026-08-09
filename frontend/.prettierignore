@@ -2,3 +2,5 @@ package-lock.json
 pnpm-lock.yaml
 yarn.lock
 .agents/
+# 세션 임시 구현 계획(gitignore). 형식을 강제할 이유가 없다.
+docs/temp/

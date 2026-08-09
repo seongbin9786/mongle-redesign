@@ -26,7 +26,6 @@ const meta = {
   tags: ['autodocs'],
   args: {
     person,
-    distant: false,
     onOpenChange: () => {},
     onRecord: () => {},
     onProfile: () => {},
@@ -56,6 +55,7 @@ type Story = StoryObj<typeof meta>
 
 export const Normal: Story = {}
 
+/** 멀어진 관계여도 시트는 달라지지 않는다 — 흐림·점선은 지도가 전담한다. */
 export const Distant: Story = {
   args: {
     person: {
@@ -72,7 +72,6 @@ export const Distant: Story = {
       },
       firstMetDate: '2016-08-01',
     },
-    distant: true,
   },
 }
 

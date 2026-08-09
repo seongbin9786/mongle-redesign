@@ -1,10 +1,10 @@
 import type { PersonNode } from '@/apis/generated/mongle-api.schemas'
 
-/** 태그 필터 매칭(OR·합집합). 미선택은 전체 매칭. */
-export function personMatchesTags(
+/** 관계태그 필터 매칭. 한 번에 한 태그만 켜지고, null(전체)은 전부 매칭이다. */
+export function personMatchesTag(
   person: Pick<PersonNode, 'relationTags'>,
-  selectedTagIds: number[],
+  selectedTagId: number | null,
 ) {
-  if (selectedTagIds.length === 0) return true
-  return person.relationTags.some((tag) => selectedTagIds.includes(tag.id))
+  if (selectedTagId == null) return true
+  return person.relationTags.some((tag) => tag.id === selectedTagId)
 }

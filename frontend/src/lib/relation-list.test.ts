@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PersonNode } from '@/apis/generated/mongle-api.schemas'
-import { personMatchesTags } from './relation-list'
+import { personMatchesTag } from './relation-list'
 
 function person(
   id: number,
@@ -21,14 +21,14 @@ function person(
   }
 }
 
-describe('personMatchesTags', () => {
+describe('personMatchesTag', () => {
   const tagged = person(1, '가', {
     relationTags: [{ id: 10, label: '친구', color: '#F97316' }],
   })
 
-  it('미선택이면 전체 매칭, 선택 태그 하나라도 가지면 매칭(OR)', () => {
-    expect(personMatchesTags(tagged, [])).toBe(true)
-    expect(personMatchesTags(tagged, [10, 20])).toBe(true)
-    expect(personMatchesTags(tagged, [20])).toBe(false)
+  it('전체(null)는 모두 매칭, 켜진 태그를 가진 사람만 매칭', () => {
+    expect(personMatchesTag(tagged, null)).toBe(true)
+    expect(personMatchesTag(tagged, 10)).toBe(true)
+    expect(personMatchesTag(tagged, 20)).toBe(false)
   })
 })
