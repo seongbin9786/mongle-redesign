@@ -30,6 +30,15 @@ import java.util.UUID
  *
  * 도메인 서비스(사용자 컨텍스트·검증)를 거치지 않고 리포지토리를 직접 쓴다 — 단 mustpass 불변식
  * (이름 필수·날짜 순서/미래·감정 ≤5·연결 인물 ≥1·관계태그 id 참조 등)은 시드 값에서 지킨다.
+ *
+ * 인물상: 서른 살, 사회생활 4년차 직장인의 관계망. 회사(현·전 직장)·대학·고등학교·가족·운동/모임이
+ * 겹치지 않는 축으로 섞여 있고, 만남 주기가 사람마다 다르다 — 궤도 홈의 눈금 7개(7일~그 이전)와
+ * 멀어진 관계(DISTANT) 판정이 한 화면에서 모두 관찰돼야 데모가 성립한다.
+ *
+ * **모든 인물에게 '만남' 카테고리 기록을 최소 2건 준다.** 궤도의 반경(마지막 만남 경과일)도
+ * 친밀도 판정(평소 주기)도 만남 기록에서만 나오기 때문이다 — 수기 `lastMetDate`만 있고 만남 기록이
+ * 없는 인물은 경과일이 null이라 전부 최외곽('그 이전') 눈금에 쌓여 기본 배율에서 화면 밖으로 나간다.
+ * '그 이전' 눈금 데모는 그래서 홍세영 한 명(연락만 하는 사이)으로만 남긴다.
  */
 @Service
 class DemoDataSeeder(
@@ -53,25 +62,28 @@ class DemoDataSeeder(
         val today = LocalDate.now()
 
         // 관계태그는 공통용이 없어(01-chip) 현재 사용자 개인 칩으로 먼저 시드한다. 라벨→id 로 인물이 참조.
-        val relationTagIds = ensureRelationTags(
+        val tag = ensureRelationTags(
             ownerId,
             listOf(
                 "가족" to "#E85D75",
                 "친구" to "#0EA5E9",
                 "직장" to "#22A06B",
                 "대학동기" to "#8B5CF6",
+                "고등학교" to "#65A30D",
+                "운동" to "#14B8A6",
                 "동네" to "#F97316",
             ),
         )
 
-        // 소속도 공통용이 없어 개인 칩으로 시드한다. '학교 > 대학교'로 1단계 중첩 케이스를 함께 심어
-        // 목록의 하위 chip 표시(mustpass people-directory)가 데모에서 바로 검증된다.
-        val affiliationIds = ensureAffiliations(
+        // 소속도 공통용이 없어 개인 칩으로 시드한다. '직장 > 같은 팀', '학교 > 대학교'로 1단계 중첩 케이스를
+        // 함께 심어 목록의 하위 chip 표시(mustpass people-directory)가 데모에서 바로 검증된다.
+        val at = ensureAffiliations(
             ownerId,
             listOf(
-                AffiliationSeed("학교", "#0EA5E9", children = listOf("대학교")),
-                AffiliationSeed("직장", "#22A06B"),
+                AffiliationSeed("직장", "#22A06B", children = listOf("같은 팀", "다른 팀", "전 직장")),
+                AffiliationSeed("학교", "#0EA5E9", children = listOf("대학교", "고등학교")),
                 AffiliationSeed("가족", "#E85D75"),
+                AffiliationSeed("모임", "#8B5CF6"),
                 AffiliationSeed("동네", "#F97316"),
             ),
         )
@@ -81,121 +93,395 @@ class DemoDataSeeder(
         val weather = commonChipIds(ChipType.WEATHER)
         val emotion = commonChipIds(ChipType.EMOTION)
 
-        // 인물 3~5명: 관계유형·태그·취향·생일(연도 유무 섞음)·처음/마지막 만난 날 다양하게.
-        val seoyeon = personRepository.save(
-            Person(
-                ownerId = ownerId,
-                name = "김서연",
-                affiliationChipId = affiliationIds.getValue("학교 > 대학교"),
-                gender = PersonGender.FEMALE,
-                birthYear = 1995, birthMonth = 4, birthDay = 12,
-                firstMetDate = today.minusYears(3),
-                lastMetDate = today.minusDays(3),
-                favorite = true,
-            ).apply {
-                replaceLikes(listOf("카페 투어", "산책"))
-                replaceCautions(listOf("매운 음식"))
-            },
-        )
-        saveRelationTags(seoyeon.id!!, tagIds(relationTagIds, "친구", "대학동기"))
-        val junho = personRepository.save(
-            Person(
-                ownerId = ownerId,
-                name = "이준호",
-                affiliationChipId = affiliationIds.getValue("직장"),
-                gender = PersonGender.MALE,
-                // 생일 연도 생략(월·일만) — 연도-선택 케이스 데모.
-                birthMonth = 9,
-                birthDay = 23,
-                firstMetDate = today.minusMonths(14),
-                lastMetDate = today.minusMonths(1),
-            ).apply {
-                replaceLikes(listOf("커피", "러닝"))
-            },
-        )
-        saveRelationTags(junho.id!!, tagIds(relationTagIds, "직장"))
-        val minji = personRepository.save(
-            Person(
-                ownerId = ownerId,
-                name = "박민지",
-                affiliationChipId = affiliationIds.getValue("가족"),
-                gender = PersonGender.FEMALE,
-                birthYear = 2000,
-                birthMonth = 11,
-                birthDay = 5,
-                // 가족이라 처음 만난 날은 비워 둠(선택 필드) — lastMet 만 있는 케이스.
-                lastMetDate = today.minusMonths(2),
-                favorite = true,
-            ),
-        )
-        saveRelationTags(minji.id!!, tagIds(relationTagIds, "가족"))
-        val yunseo = personRepository.save(
-            Person(
-                ownerId = ownerId,
-                name = "최윤서",
-                affiliationChipId = affiliationIds.getValue("동네"),
-                gender = PersonGender.FEMALE,
-                // 생일 없음.
-                firstMetDate = today.minusYears(1).minusMonths(2),
-                lastMetDate = today.minusDays(10),
-            ).apply {
-                replaceLikes(listOf("떡볶이"))
-                replaceCautions(listOf("늦은 약속"))
-            },
-        )
-        saveRelationTags(yunseo.id!!, tagIds(relationTagIds, "동네", "친구"))
-        val hajun = personRepository.save(
-            Person(
-                ownerId = ownerId,
-                name = "정하준",
-                affiliationChipId = affiliationIds.getValue("학교 > 대학교"),
-                gender = PersonGender.MALE,
-                birthYear = 1998,
-                birthMonth = 7,
-                birthDay = 30,
-                firstMetDate = today.minusYears(2),
-                lastMetDate = today.minusMonths(10),
-            ),
-        )
-        saveRelationTags(hajun.id!!, tagIds(relationTagIds, "대학동기", "친구"))
+        val ctx = SeedContext(ownerId, today, category, weather, emotion, at, tag)
 
-        // 기록 8건: 만남/연락/기념일 섞고 감정·날씨·메모 다양하게, 과거 여러 달에 분산.
-        // '정확히 1년 전 오늘' 1건 포함(1년 전 오늘·활동흐름·친밀도 데모 성립 조건, #13).
-        seedEvent(ownerId, today.minusYears(1), category["만남"]!!, weather["맑음"], listOf(hajun.id!!), emotionIds(emotion, "반가움", "즐거움")) {
-            memo = "오랜만에 얼굴 보고 싶어서\n한강 피크닉"
+        // ── 회사 (4년차, 현 직장은 3년 전 이직) ──────────────────────────────
+        val dohyeon = ctx.person("김도현", PersonGender.MALE, "직장 > 같은 팀", listOf("직장")) {
+            birthYear = 1993
+            birthMonth = 5
+            birthDay = 8
+            firstMetDate = today.minusDays(1090)
+            replaceLikes(listOf("커피", "야구"))
         }
-        seedEvent(ownerId, today.minusDays(3), category["만남"]!!, weather["흐림"], listOf(seoyeon.id!!), emotionIds(emotion, "편안", "고마움")) {
-            occurredTime = LocalTime.of(15, 0)
-            title = "서연이랑 카페"
-            memo = "시험 끝나고 기분전환\n홍대 카페에서 수다"
+        val seojun = ctx.person("박서준", PersonGender.MALE, "직장 > 같은 팀", listOf("직장", "친구")) {
+            birthYear = 1996
+            birthMonth = 2
+            birthDay = 19
+            firstMetDate = today.minusDays(1090)
+            replaceLikes(listOf("라멘", "게임"))
+            favorite = true
         }
-        seedEvent(ownerId, today.minusDays(10), category["만남"]!!, weather["더움"], listOf(yunseo.id!!), emotionIds(emotion, "즐거움")) {
-            memo = "동네 저녁 산책"
+        val jieun = ctx.person("이지은", PersonGender.FEMALE, "직장 > 같은 팀", listOf("직장")) {
+            birthYear = 1994
+            birthMonth = 11
+            birthDay = 2
+            firstMetDate = today.minusDays(1090)
+            replaceLikes(listOf("필라테스"))
         }
-        seedEvent(ownerId, today.minusMonths(1), category["연락"]!!, null, listOf(junho.id!!), emotionIds(emotion, "그냥")) {
-            memo = "문득 생각나서\n오랜만에 안부 전화"
+        val minseok = ctx.person("최민석", PersonGender.MALE, "직장 > 같은 팀", listOf("직장")) {
+            birthYear = 1988
+            birthMonth = 3
+            birthDay = 27
+            firstMetDate = today.minusDays(1090)
+            replaceCautions(listOf("갑작스러운 회식"))
         }
-        seedEvent(ownerId, today.minusMonths(2), category["만남"]!!, weather["맑음"], listOf(minji.id!!, seoyeon.id!!), emotionIds(emotion, "반가움", "편안", "즐거움")) {
-            memo = "엄마 생신\n가족 모임 겸 저녁"
+        val hayeong = ctx.person("정하영", PersonGender.FEMALE, "직장 > 다른 팀", listOf("직장")) {
+            birthYear = 1997
+            birthMonth = 9
+            birthDay = 14
+            firstMetDate = today.minusDays(880)
+            replaceLikes(listOf("디저트", "전시"))
         }
-        seedEvent(ownerId, today.minusMonths(4), category["기념일"]!!, weather["쌀쌀"], listOf(seoyeon.id!!), emotionIds(emotion, "뭉클", "고마움")) {
-            title = "서연 생일"
-            memo = "10년지기 생일\n생일 축하 저녁"
+        val sohee = ctx.person("한소희", PersonGender.FEMALE, "직장 > 전 직장", listOf("직장")) {
+            birthYear = 1995
+            birthMonth = 7
+            birthDay = 30
+            firstMetDate = today.minusDays(1750)
         }
-        // 하준: 1년 전 → 10개월 전 두 번 만난 뒤 오래 지나 평소 주기(2개월)의 2배를 넘긴 DISTANT 사례.
-        seedEvent(ownerId, today.minusMonths(10), category["만남"]!!, weather["비"], listOf(hajun.id!!, yunseo.id!!), emotionIds(emotion, "즐거움", "그냥")) {
-            memo = "동아리 번개 모임"
+        val woojin = ctx.person("장우진", PersonGender.MALE, "직장 > 전 직장", listOf("직장")) {
+            birthYear = 1991
+            birthMonth = 10
+            birthDay = 30
+            firstMetDate = today.minusDays(1750)
+            replaceLikes(listOf("등산"))
         }
-        seedEvent(ownerId, today.minusMonths(9), category["연락"]!!, null, listOf(junho.id!!), emotionIds(emotion, "그냥")) {
-            memo = "협업 논의\n프로젝트 관련 메시지"
+
+        // ── 대학 ────────────────────────────────────────────────────────────
+        val junyeong = ctx.person("오준영", PersonGender.MALE, "학교 > 대학교", listOf("대학동기", "친구")) {
+            birthYear = 1996
+            birthMonth = 6
+            birthDay = 11
+            firstMetDate = today.minusDays(2900)
+            replaceLikes(listOf("등산", "위스키"))
+            favorite = true
         }
+        val chaewon = ctx.person("윤채원", PersonGender.FEMALE, "학교 > 대학교", listOf("대학동기")) {
+            birthYear = 1996
+            birthMonth = 1
+            birthDay = 25
+            firstMetDate = today.minusDays(2900)
+            replaceLikes(listOf("영화"))
+        }
+        val taeyun = ctx.person("임태윤", PersonGender.MALE, "학교 > 대학교", listOf("대학동기")) {
+            birthYear = 1994
+            birthMonth = 4
+            birthDay = 3
+            firstMetDate = today.minusDays(2900)
+        }
+        val subin = ctx.person("강수빈", PersonGender.FEMALE, "학교 > 대학교", listOf("대학동기")) {
+            birthYear = 1997
+            birthMonth = 12
+            birthDay = 8
+            firstMetDate = today.minusDays(2400)
+        }
+
+        // ── 고등학교 ────────────────────────────────────────────────────────
+        val jaehun = ctx.person("신재훈", PersonGender.MALE, "학교 > 고등학교", listOf("고등학교", "친구")) {
+            birthYear = 1996
+            birthMonth = 8
+            birthDay = 22
+            firstMetDate = today.minusDays(4800)
+            replaceLikes(listOf("삼겹살", "여행"))
+            favorite = true
+        }
+        val yujin = ctx.person("배유진", PersonGender.FEMALE, "학교 > 고등학교", listOf("고등학교")) {
+            birthYear = 1996
+            birthMonth = 3
+            birthDay = 16
+            firstMetDate = today.minusDays(4800)
+        }
+        val jiho = ctx.person("문지호", PersonGender.MALE, "학교 > 고등학교", listOf("고등학교")) {
+            birthYear = 1996
+            birthMonth = 10
+            birthDay = 5
+            firstMetDate = today.minusDays(4800)
+        }
+        val seyeong = ctx.person("홍세영", PersonGender.FEMALE, "학교 > 고등학교", listOf("고등학교")) {
+            birthYear = 1995
+            birthMonth = 5
+            birthDay = 5
+            firstMetDate = today.minusDays(4800)
+        }
+
+        // ── 가족 (처음 만난 날은 비워 둔다 — 선택 필드의 자연스러운 공백) ────
+        val mom = ctx.person("김영주", PersonGender.FEMALE, "가족", listOf("가족")) {
+            birthYear = 1966
+            birthMonth = 9
+            birthDay = 19
+            replaceLikes(listOf("드라마", "화분"))
+            replaceCautions(listOf("매운 음식"))
+            favorite = true
+        }
+        val dad = ctx.person("김성호", PersonGender.MALE, "가족", listOf("가족")) {
+            birthYear = 1963
+            birthMonth = 1
+            birthDay = 7
+            replaceLikes(listOf("등산", "낚시"))
+        }
+        val sister = ctx.person("김도경", PersonGender.FEMALE, "가족", listOf("가족")) {
+            birthYear = 2000
+            birthMonth = 5
+            birthDay = 23
+        }
+
+        // ── 운동·모임·동네 ──────────────────────────────────────────────────
+        val yujinPt = ctx.person("노유진", PersonGender.FEMALE, "동네", listOf("운동", "동네")) {
+            birthYear = 1993
+            birthMonth = 6
+            birthDay = 28
+            firstMetDate = today.minusDays(190)
+        }
+        val jihun = ctx.person("서지훈", PersonGender.MALE, "모임", listOf("운동")) {
+            birthYear = 1995
+            birthMonth = 11
+            birthDay = 13
+            firstMetDate = today.minusDays(400)
+            replaceLikes(listOf("러닝", "국수"))
+        }
+        val eunbi = ctx.person("조은비", PersonGender.FEMALE, "모임", listOf("운동", "친구")) {
+            birthYear = 1998
+            birthMonth = 4
+            birthDay = 9
+            firstMetDate = today.minusDays(400)
+        }
+        val minjae = ctx.person("황민재", PersonGender.MALE, "모임", listOf("운동")) {
+            birthYear = 1992
+            birthMonth = 2
+            birthDay = 11
+            firstMetDate = today.minusDays(790)
+        }
+        val nayeon = ctx.person("권나연", PersonGender.FEMALE, "모임", listOf("친구")) {
+            birthYear = 1996
+            birthMonth = 12
+            birthDay = 2
+            firstMetDate = today.minusDays(690)
+        }
+        // 생일 연도 생략(월·일만) — 아직 서로를 깊이 모르는 사이의 연도-선택 케이스.
+        val harin = ctx.person("유하린", PersonGender.FEMALE, "동네", listOf("친구")) {
+            birthMonth = 7
+            birthDay = 21
+            firstMetDate = today.minusDays(24)
+            replaceLikes(listOf("산책", "고양이"))
+        }
+
+        // ── 만남 기록 ───────────────────────────────────────────────────────
+        // 회사 사람은 자주·짧게, 대학·고등학교는 뜸하게 몰아서, 가족은 본가에 한 번에 —
+        // 한 기록에 여러 사람을 묶는 경우(본가·크루 정기런)를 섞어 다중 연결도 데모에 남긴다.
+        ctx.meet(2, listOf(dohyeon), "즐거움", "편안", weatherLabel = "맑음") {
+            memo = "퇴근하고 회사 앞에서 맥주 한 잔\n이직 고민 들어줬다"
+        }
+        ctx.meet(23, listOf(dohyeon), "그냥", weatherLabel = "흐림") { memo = "점심에 새로 생긴 국밥집" }
+        ctx.meet(58, listOf(dohyeon), "즐거움", "반가움", weatherLabel = "더움") {
+            title = "잠실 야구장"
+            memo = "주말에 야구 보러\n9회말에 역전당했다"
+        }
+
+        ctx.meet(5, listOf(seojun), "즐거움", "편안") {
+            occurredTime = LocalTime.of(19, 30)
+            memo = "동기끼리 저녁\n연봉 얘기 반, 이직 얘기 반"
+        }
+        ctx.meet(31, listOf(seojun), "그냥", weatherLabel = "비") { memo = "회사 근처 라멘집" }
+        ctx.meet(73, listOf(seojun), "즐거움") { memo = "주말 보드게임 카페" }
+
+        ctx.meet(12, listOf(jieun, minseok, hayeong), "그냥", "아쉬움") {
+            title = "팀 회식"
+            memo = "분기 마감하고 회식\n2차는 도망쳤다"
+        }
+        ctx.meet(40, listOf(jieun), "편안") { memo = "점심 먹고 회사 뒷길 산책" }
+
+        ctx.meet(20, listOf(minseok), "든든", "그냥") {
+            memo = "팀장님이랑 1on1 겸 저녁\n내년 커리어 얘기"
+        }
+        ctx.meet(95, listOf(minseok, dohyeon, jieun), "즐거움") {
+            title = "부서 워크숍"
+            memo = "1박 2일 워크숍\n생각보다 재밌었다"
+        }
+
+        ctx.meet(9, listOf(hayeong), "편안") { memo = "점심 메이트\n회사 앞 파스타" }
+        ctx.meet(26, listOf(hayeong), "편안", "고마움") { memo = "퇴근길에 카페에서 30분" }
+        ctx.meet(54, listOf(hayeong), "설렘", "즐거움", weatherLabel = "맑음") {
+            title = "전시 보고 온 날"
+            memo = "주말에 성수 전시\n사진 많이 찍었다"
+        }
+
+        // 한소희: 평소 주기(약 4~5개월)의 두 배를 넘겨 멀어진 관계(DISTANT)로 잡히는 사례.
+        ctx.meet(330, listOf(sohee), "반가움", "아쉬움") { memo = "이직 축하 저녁" }
+        ctx.meet(510, listOf(sohee), "서운") { memo = "퇴사 전 마지막 점심" }
+        ctx.meet(600, listOf(sohee), "즐거움") { memo = "프로젝트 끝나고 회식" }
+
+        // 장우진: 첫 회사 사수. '3년' 눈금에 앉는 오래된 관계.
+        ctx.meet(900, listOf(woojin), "든든", "고마움") { memo = "첫 회사 사수님\n이직 상담 받았다" }
+        ctx.meet(1100, listOf(woojin), "서운", "고마움") { memo = "퇴사 인사드리고 저녁" }
+
+        ctx.meet(3, listOf(junyeong), "편안", "즐거움") { memo = "동네에서 늦게까지 수다" }
+        ctx.meet(21, listOf(junyeong), "즐거움", weatherLabel = "맑음") {
+            title = "북한산"
+            memo = "오랜만에 등산\n내려와서 막걸리"
+        }
+        ctx.meet(49, listOf(junyeong), "설렘") { memo = "생일 겸 위스키바" }
+        ctx.meet(120, listOf(junyeong, chaewon, taeyun), "반가움") {
+            title = "과 동기 모임"
+            memo = "학교 앞에서 모임\n다들 늙었다고 웃었다"
+        }
+
+        ctx.meet(40, listOf(chaewon), "즐거움") { memo = "영화 보고 저녁" }
+        ctx.meet(280, listOf(chaewon), "뭉클", "고마움") { memo = "결혼 소식 듣고 축하 자리" }
+
+        ctx.meet(70, listOf(taeyun), "고마움", "든든") { memo = "동아리 선배가 밥 사줬다" }
+        ctx.meet(250, listOf(taeyun), "그냥") { memo = "학교 근처에서 한잔" }
+
+        ctx.meet(150, listOf(subin), "든든") { memo = "취업 상담 겸 커피" }
+        ctx.meet(430, listOf(subin), "뭉클", "즐거움") { memo = "졸업 축하 자리" }
+
+        ctx.meet(16, listOf(jaehun), "편안", "즐거움") { memo = "동네에서 삼겹살\n결국 새벽까지" }
+        ctx.meet(62, listOf(jaehun, yujin), "반가움") {
+            title = "고등학교 친구들"
+            memo = "10년 넘게 보는 사이\n볼 때마다 그때 얘기"
+        }
+        ctx.meet(150, listOf(jaehun), "설렘") { memo = "가을에 같이 갈 여행 계획 세웠다" }
+
+        ctx.meet(85, listOf(yujin), "편안") { memo = "브런치 먹고 산책" }
+        ctx.meet(300, listOf(yujin), "반가움", "그냥") { memo = "동창회에서 오랜만에" }
+
+        // 문지호: 만남이 3년 눈금에 남아 있고 주기의 두 배를 넘긴 사례.
+        ctx.meet(730, listOf(jiho), "즐거움") { memo = "군대 얘기하다 새벽까지" }
+        ctx.meet(1050, listOf(jiho), "반가움") { memo = "졸업하고 처음 본 날" }
+
+        ctx.meet(6, listOf(mom, dad, sister), "고마움", "편안") {
+            title = "본가"
+            memo = "주말에 본가 다녀옴\n엄마가 반찬 싸줬다"
+        }
+        ctx.meet(34, listOf(mom), "뭉클") { memo = "엄마 병원 같이 다녀옴" }
+        ctx.meet(150, listOf(dad), "든든", "고마움", weatherLabel = "쌀쌀") { memo = "아빠랑 둘이 등산" }
+        ctx.meet(90, listOf(sister), "든든") { memo = "부모님 선물 같이 고르러" }
+
+        ctx.meet(4, listOf(yujinPt), "든든") { memo = "PT 30회차\n하체 하고 계단 못 내려감" }
+        ctx.meet(11, listOf(yujinPt), "그냥") { memo = "PT" }
+        ctx.meet(18, listOf(yujinPt), "설렘") { memo = "PT 등록하고 첫 인바디" }
+
+        ctx.meet(10, listOf(jihun), "즐거움", weatherLabel = "쌀쌀") { memo = "한강 러닝 10km" }
+        ctx.meet(24, listOf(jihun, eunbi), "그냥") {
+            title = "크루 정기런"
+            memo = "정기런\n끝나고 다 같이 국수"
+        }
+        ctx.meet(38, listOf(jihun), "뭉클", "즐거움") { memo = "하프 마라톤 같이 뛴 날" }
+        ctx.meet(52, listOf(eunbi), "편안") { memo = "러닝 끝나고 국수" }
+
+        ctx.meet(100, listOf(minjae), "즐거움") { memo = "클라이밍장에서 3시간" }
+        ctx.meet(210, listOf(minjae), "설렘") { memo = "암장 등록한 날" }
+
+        ctx.meet(160, listOf(nayeon), "편안") { memo = "스터디 끝나고 저녁" }
+        ctx.meet(330, listOf(nayeon), "그냥") { memo = "스터디 첫 모임" }
+
+        ctx.meet(2, listOf(harin), "설렘") { memo = "두 번째로 만난 날\n동네 파스타집" }
+        ctx.meet(24, listOf(harin), "설렘", "반가움") { memo = "소개로 처음 만난 날" }
+
+        // ── 연락·기념일 ─────────────────────────────────────────────────────
+        // 홍세영: 만남 기록이 없어 '그 이전' 눈금에 앉는 유일한 사례(연락만 하는 사이).
+        ctx.contact(45, listOf(seyeong), "그냥") { memo = "카톡으로 안부\n올해는 꼭 보자고 했다" }
+        ctx.contact(120, listOf(sohee), "그냥") { memo = "잘 지내냐고 안부 전화" }
+
+        // 정확히 1년 전 오늘 1건 — 회고(#43)·활동 흐름 데모의 성립 조건.
+        ctx.anniversary(today.minusYears(1), listOf(jaehun), "뭉클", "고마움") {
+            title = "재훈이 생일"
+            memo = "매년 챙기는 생일\n올해도 케이크 들고 갔다"
+        }
+
         user.markDemoSeeded()
     }
 
-    /** 현재 사용자 관계태그 조인 행을 순서대로 심는다. */
-    private fun saveRelationTags(personId: Long, chipIds: List<Long>) {
-        chipIds.forEachIndexed { order, chipId ->
-            personRelationTagRepository.save(PersonRelationTag(personId = personId, chipId = chipId, displayOrder = order))
+    /**
+     * 시드 한 번 동안 바뀌지 않는 소유자·오늘·칩 해석 결과를 묶는다.
+     * 인물·기록 한 줄마다 같은 인자 6개를 끌고 다니면 정작 데이터(누구를 언제 만났나)가 안 읽힌다.
+     */
+    private inner class SeedContext(
+        val ownerId: UUID,
+        val today: LocalDate,
+        val category: Map<String, Long>,
+        val weather: Map<String, Long>,
+        val emotion: Map<String, Long>,
+        val affiliation: Map<String, Long>,
+        val relationTag: Map<String, Long>,
+    ) {
+        fun person(
+            name: String,
+            gender: PersonGender,
+            affiliationLabel: String,
+            tags: List<String>,
+            configure: Person.() -> Unit,
+        ): Long {
+            val person = personRepository.save(
+                Person(
+                    ownerId = ownerId,
+                    name = name,
+                    gender = gender,
+                    affiliationChipId = affiliation.getValue(affiliationLabel),
+                ).apply(configure),
+            )
+            val personId = requireNotNull(person.id)
+            tags.forEachIndexed { order, label ->
+                personRelationTagRepository.save(
+                    PersonRelationTag(personId = personId, chipId = relationTag.getValue(label), displayOrder = order),
+                )
+            }
+            return personId
+        }
+
+        fun meet(
+            daysAgo: Long,
+            personIds: List<Long>,
+            vararg emotions: String,
+            weatherLabel: String? = null,
+            configure: Event.() -> Unit,
+        ) = event("만남", daysAgo, personIds, emotions, weatherLabel, configure)
+
+        fun contact(
+            daysAgo: Long,
+            personIds: List<Long>,
+            vararg emotions: String,
+            configure: Event.() -> Unit,
+        ) = event("연락", daysAgo, personIds, emotions, null, configure)
+
+        fun anniversary(
+            date: LocalDate,
+            personIds: List<Long>,
+            vararg emotions: String,
+            configure: Event.() -> Unit,
+        ) = save("기념일", date, personIds, emotions, null, configure)
+
+        private fun event(
+            categoryLabel: String,
+            daysAgo: Long,
+            personIds: List<Long>,
+            emotions: Array<out String>,
+            weatherLabel: String?,
+            configure: Event.() -> Unit,
+        ) = save(categoryLabel, today.minusDays(daysAgo), personIds, emotions, weatherLabel, configure)
+
+        /** 기록 1건을 저장하고 연결 인물·감정 조인 행을 순서대로 심는다(대표 인물 = personIds 첫 번째). */
+        private fun save(
+            categoryLabel: String,
+            date: LocalDate,
+            personIds: List<Long>,
+            emotions: Array<out String>,
+            weatherLabel: String?,
+            configure: Event.() -> Unit,
+        ) {
+            val event = eventRepository.save(
+                Event(
+                    ownerId = ownerId,
+                    occurredDate = date,
+                    categoryChipId = category.getValue(categoryLabel),
+                    weatherChipId = weatherLabel?.let { weather.getValue(it) },
+                ).apply(configure),
+            )
+            val eventId = requireNotNull(event.id)
+            personIds.forEachIndexed { order, personId ->
+                eventPersonRepository.save(EventPerson(eventId = eventId, personId = personId, displayOrder = order))
+            }
+            emotions.forEachIndexed { order, label ->
+                eventEmotionRepository.save(EventEmotion(eventId = eventId, chipId = emotion.getValue(label), displayOrder = order))
+            }
         }
     }
 
@@ -250,35 +536,4 @@ class DemoDataSeeder(
     private fun commonChipIds(type: ChipType): Map<String, Long> = chipRepository
         .findByTypeAndOwnerIdIsNullAndDeletedAtIsNullOrderByDisplayOrderAsc(type)
         .associate { it.label to it.id!! }
-
-    private fun tagIds(all: Map<String, Long>, vararg labels: String): List<Long> = labels.map { all.getValue(it) }
-
-    private fun emotionIds(all: Map<String, Long>, vararg labels: String): List<Long> = labels.map { all.getValue(it) }
-
-    /** 기록 1건을 저장하고 연결 인물·감정 조인 행을 순서대로 심는다(대표 인물 = personIds 첫 번째). */
-    private fun seedEvent(
-        ownerId: UUID,
-        date: LocalDate,
-        categoryChipId: Long,
-        weatherChipId: Long?,
-        personIds: List<Long>,
-        emotionChipIds: List<Long>,
-        configure: Event.() -> Unit,
-    ) {
-        val event = eventRepository.save(
-            Event(
-                ownerId = ownerId,
-                occurredDate = date,
-                categoryChipId = categoryChipId,
-                weatherChipId = weatherChipId,
-            ).apply(configure),
-        )
-        val eventId = event.id!!
-        personIds.forEachIndexed { order, personId ->
-            eventPersonRepository.save(EventPerson(eventId = eventId, personId = personId, displayOrder = order))
-        }
-        emotionChipIds.forEachIndexed { order, chipId ->
-            eventEmotionRepository.save(EventEmotion(eventId = eventId, chipId = chipId, displayOrder = order))
-        }
-    }
 }
