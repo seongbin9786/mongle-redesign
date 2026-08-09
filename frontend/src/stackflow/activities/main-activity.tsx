@@ -1,6 +1,7 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { AppScreen } from '@/stackflow/components/app-screen'
 import type { ActivityComponentType } from '@stackflow/react'
+import { MainOverlayContainerProvider } from '@/stackflow/activities/main-overlay-container'
 import { StackTabBar } from '@/stackflow/components/stack-tab-bar'
 import { HomeTab } from '@/stackflow/tabs/home-tab'
 import { TimelineTab } from '@/stackflow/tabs/timeline-tab'
@@ -24,20 +25,32 @@ export const MainActivity: ActivityComponentType<'Main'> = ({ params }) => {
   // (전 탭을 즉시 마운트하면 첫 진입에 모든 탭의 쿼리가 동시에 나간다)
   const visitedTabs = useRef<Set<MainTab>>(new Set())
   visitedTabs.current.add(tab)
+  const [overlayContainer, setOverlayContainer] = useState<HTMLElement | null>(
+    null,
+  )
 
   return (
     <AppScreen>
-      <div className="relative flex h-full flex-col bg-background">
-        {MAIN_TABS.map((t) => {
-          if (!visitedTabs.current.has(t)) return null
-          const Tab = TAB_COMPONENTS[t]
-          return (
-            <div key={t} hidden={t !== tab} className="relative min-h-0 flex-1">
-              <Tab />
-            </div>
-          )
-        })}
-        <StackTabBar activeTab={tab} />
+      <div
+        ref={setOverlayContainer}
+        className="relative flex h-full flex-col bg-background"
+      >
+        <MainOverlayContainerProvider value={overlayContainer}>
+          {MAIN_TABS.map((t) => {
+            if (!visitedTabs.current.has(t)) return null
+            const Tab = TAB_COMPONENTS[t]
+            return (
+              <div
+                key={t}
+                hidden={t !== tab}
+                className="relative min-h-0 flex-1"
+              >
+                <Tab />
+              </div>
+            )
+          })}
+          <StackTabBar activeTab={tab} />
+        </MainOverlayContainerProvider>
       </div>
     </AppScreen>
   )

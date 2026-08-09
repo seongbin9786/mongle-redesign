@@ -1,8 +1,10 @@
+import { useActivityParams, useStepFlow } from '@stackflow/react'
 import { useQuery } from '@tanstack/react-query'
 import { CircleDot, Clock3, List, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { chipQuery, homeQuery } from '@/apis/queries'
 import { PersonCardSheet } from '@/components/home/person-card-sheet'
+import { useMainOverlayContainer } from '@/stackflow/activities/main-overlay-container'
 import { RelationListView } from '@/components/home/relation-list-view'
 import { RelationOrbitMap } from '@/components/home/relation-orbit-map'
 import { RelationTagFilter } from '@/components/home/relation-tag-filter'
@@ -31,13 +33,15 @@ import { useAppFlow } from '@/stackflow/use-app-flow'
 
 export function HomeTab() {
   const { push } = useAppFlow()
+  const params = useActivityParams<'Main'>()
+  const overlayContainer = useMainOverlayContainer()
+  const { pushStep, replaceStep, popStep } = useStepFlow('Main')
   // 설정의 '홈 기본 기간'은 비노출 기준 필터로만 작동한다. 탭 마운트 시 저장값으로
   // 초기화하고, 설정 탭에서 바뀌면 구독으로 즉시 반영한다(홈 탭은 hidden 유지라
   // 리마운트되지 않음). 기간 토글 UI는 궤도 링이 최근성을 대신 보여주면서 제거됐다.
   const [period, setPeriod] = useState<HomePeriod>(() => getDefaultHomePeriod())
   useEffect(() => subscribeDefaultHomePeriod(setPeriod), [])
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
-  const [sheetPersonId, setSheetPersonId] = useState<number | null>(null)
   const [throwbackDismissed, setThrowbackDismissed] = useState(false)
   const [throwbackExiting, setThrowbackExiting] = useState(false)
   // PRD: 마지막에 고른 보기를 기억한다. 기본은 궤도(홈은 지도가 주연).
@@ -103,9 +107,23 @@ export function HomeTab() {
     })
   }
 
+  // 시트 열림은 URL step(`/home?personCard=1`)이 유일한 소스다.
+  // 열 때만 step을 쌓아 뒤로가기로 닫히게 하고, 열려 있는 동안 다른 사람을
+  // 고르면 replace라 히스토리가 늘지 않고 시트도 그대로 있는다.
+  const sheetPersonId = params.personCard ? Number(params.personCard) : null
+
   const openPersonCard = (personId: number) => {
-    setSheetPersonId(personId)
+    const next = (prev: typeof params) => ({
+      ...prev,
+      personCard: String(personId),
+    })
+    if (sheetPersonId != null) replaceStep(next)
+    else pushStep(next)
     void trackFeature(featureEvents.homePersonCardOpened)
+  }
+
+  const closePersonCard = () => {
+    if (sheetPersonId != null) popStep()
   }
 
   const sheetPerson =
@@ -261,18 +279,16 @@ export function HomeTab() {
 
       <PersonCardSheet
         person={sheetPerson}
+        container={overlayContainer}
         distant={sheetDistant}
         onOpenChange={(open) => {
-          if (!open) setSheetPersonId(null)
+          if (!open) closePersonCard()
         }}
-        onRecord={(personId) => {
-          setSheetPersonId(null)
-          push('Record', { personId: String(personId) })
-        }}
-        onProfile={(personId) => {
-          setSheetPersonId(null)
+        // 다녀와서 뒤로 돌아오면 시트가 그대로 있도록 닫지 않고 그냥 push한다.
+        onRecord={(personId) => push('Record', { personId: String(personId) })}
+        onProfile={(personId) =>
           push('Person', { personId: String(personId), view: 'profile' })
-        }}
+        }
       />
 
       {throwback && !throwbackDismissed ? (

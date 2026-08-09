@@ -33,8 +33,8 @@ export function activityUrl<TActivityName extends AppActivityName>(
 ): string {
   switch (activityName) {
     case 'Main': {
-      const { tab } = activityParams as InferActivityParams<'Main'>
-      return `/${tab}`
+      const { tab, personCard } = activityParams as InferActivityParams<'Main'>
+      return withSearch(`/${tab}`, { personCard })
     }
     case 'Person': {
       const { personId, view } = activityParams as InferActivityParams<'Person'>

@@ -1,4 +1,5 @@
 import type { PersonNode } from '@/apis/generated/mongle-api.schemas'
+import { personNodeProps } from '@/components/home/person-node-marker'
 import { Button } from '@/components/ui/button'
 import {
   EmptyState,
@@ -60,6 +61,7 @@ export function RelationListView({
           >
             <button
               type="button"
+              {...personNodeProps}
               onClick={() => onSelectPerson(person.id)}
               className="flex w-full items-center gap-3 text-left transition-opacity active:opacity-70"
             >
