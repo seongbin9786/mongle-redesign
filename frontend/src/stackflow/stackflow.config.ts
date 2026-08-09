@@ -13,7 +13,9 @@ export type PersonView = 'profile' | 'timeline'
 // activity params는 string(union) 기반으로 선언한다.
 declare module '@stackflow/config' {
   interface Register {
-    Main: { tab: MainTab }
+    // personCard: 홈 관계 카드 시트에 떠 있는 인물 id. 시트 열림을 URL step으로
+    // 관리해 뒤로가기로 닫히고, 다른 화면에 다녀와도 유지된다.
+    Main: { tab: MainTab; personCard?: string }
     Person: { personId: string; view?: PersonView }
     PersonNew: object
     PersonEdit: { personId: string }
@@ -48,7 +50,10 @@ export const stackConfig = defineConfig({
         // `/timeline`·`/people`·`/settings` 기존 URL이 그대로 탭 딥링크가 된다
         path: '/:tab',
         // 알 수 없는 탭 세그먼트는 홈으로 흡수한다 (decode throw 시 폴백 동작이 보장되지 않음)
+        // decode 반환값이 곧 activity params라, 쿼리로 온 값(personCard 등)까지
+        // 함께 넘겨야 `/home?personCard=1` 딥링크가 살아난다.
         decode: (params) => ({
+          ...params,
           tab: isMainTab(params.tab) ? params.tab : 'home',
         }),
       },

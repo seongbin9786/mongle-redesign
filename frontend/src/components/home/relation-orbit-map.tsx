@@ -4,6 +4,7 @@ import type {
   PersonNode,
   RelationEdge,
 } from '@/apis/generated/mongle-api.schemas'
+import { personNodeProps } from '@/components/home/person-node-marker'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { defaultPersonImageUrl } from '@/lib/default-person-image'
 import { formatPersonName, monogram } from '@/lib/format'
@@ -166,6 +167,7 @@ export function RelationOrbitMap({
           <button
             key={node.id}
             type="button"
+            {...personNodeProps}
             onClick={() => onSelectPerson(node.id)}
             className={cn(
               'absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full p-1 outline-none transition-opacity duration-200 focus-visible:ring-2 focus-visible:ring-ring',
