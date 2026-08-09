@@ -92,7 +92,7 @@ export type PersonFormValues = {
   name: string
   profileImageUrl: string | null
   gender: 'FEMALE' | 'MALE' | ''
-  relationType: string
+  affiliationChipId: number | null
   relationTagChipIds: number[]
   likes: string[]
   cautions: string[]
@@ -136,6 +136,7 @@ function composeFirstMetDate(
 export function personToFormValues(
   person?: Partial<PersonRequest> & {
     name?: string
+    affiliation?: { id: number } | null
     relationTags?: Array<{ id: number }>
   },
 ): PersonFormValues {
@@ -145,7 +146,8 @@ export function personToFormValues(
     name: person?.name ?? '',
     profileImageUrl: person?.profileImageUrl ?? null,
     gender: person?.gender ?? '',
-    relationType: person?.relationType ?? '',
+    affiliationChipId:
+      person?.affiliationChipId ?? person?.affiliation?.id ?? null,
     relationTagChipIds:
       person?.relationTagChipIds ??
       person?.relationTags?.map((t) => t.id) ??
@@ -180,7 +182,7 @@ export function formValuesToRequest(values: PersonFormValues): PersonRequest {
     name: values.name.trim(),
     profileImageUrl: values.profileImageUrl ?? undefined,
     gender: values.gender || undefined,
-    relationType: values.relationType.trim() || undefined,
+    affiliationChipId: values.affiliationChipId ?? undefined,
     relationTagChipIds: values.relationTagChipIds,
     likes: values.likes,
     cautions: values.cautions,

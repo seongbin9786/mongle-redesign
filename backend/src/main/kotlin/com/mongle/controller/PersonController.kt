@@ -40,7 +40,7 @@ class PersonController(
     @Operation(
         operationId = "getPersons",
         summary = "인물 디렉토리 조회",
-        description = "내 인물 목록을 정렬·검색해 반환한다. 어느 정렬이든 즐겨찾기는 항상 상단 그룹으로 뜬다. query 로 이름 검색을 한다.",
+        description = "내 인물 목록을 정렬·검색해 반환한다. 어느 정렬이든 즐겨찾기가 앞선다. query 는 이름·소속·관계태그 라벨을 함께 훑는다.",
     )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "인물 목록.", useReturnTypeSchema = true),
@@ -49,9 +49,9 @@ class PersonController(
     @GetMapping
     fun directory(
         @AuthUser user: UserPrincipal,
-        @Parameter(description = "정렬(NAME=가나다, RECENT=최근). 즐겨찾기는 항상 상단.", example = "NAME")
-        @RequestParam(defaultValue = "NAME") sort: PersonSort,
-        @Parameter(description = "이름 검색어(선택).", example = "김")
+        @Parameter(description = "정렬(RECENT=마지막 만남, RECORD_COUNT=기록 많은 순, NAME=가나다). 즐겨찾기가 앞선다.", example = "RECENT")
+        @RequestParam(defaultValue = "RECENT") sort: PersonSort,
+        @Parameter(description = "검색어(선택). 이름·소속·관계태그 라벨을 훑는다.", example = "김")
         @RequestParam(required = false) query: String?,
     ): List<PersonResponse> = personService.directory(user.id, sort, query)
 

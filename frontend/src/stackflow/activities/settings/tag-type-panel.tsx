@@ -1,10 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
-import { Check, Plus, X } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { ConfirmPopup } from '@/components/ui/confirm-popup'
-import { Input } from '@/components/ui/input'
-import { ListGroupInset } from '@/components/ui/list-group-inset'
 import type {
   ChipResponse,
   ChipResponseType,
@@ -14,8 +10,9 @@ import {
   RELATION_TAG_COLOR_PALETTE,
   normalizeChipColor,
 } from '@/lib/relation-tag-colors'
-import { isImeComposing } from '@/lib/keyboard'
 import { RelationTagColorPicker } from '@/components/settings/relation-tag-color-picker'
+import { TagCreateRow } from '@/components/settings/tag-create-row'
+import { TagInlineEditor } from '@/components/settings/tag-inline-editor'
 import { TagSettingRow } from '@/components/settings/tag-setting-row'
 import { featureEvents, trackFeature } from '@/lib/analytics'
 
@@ -145,46 +142,15 @@ export function TagTypePanel({
             {chips.map((chip) => (
               <li key={chip.id} className="py-2 first:pt-0 last:pb-0">
                 {editingId === chip.id ? (
-                  <div className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3">
-                    <div className="flex h-10 items-center gap-1 rounded-lg border border-border px-2 pl-3">
-                      <Input
-                        value={editLabel}
-                        onChange={(event) => setEditLabel(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (isImeComposing(event)) return
-                          if (event.key === 'Enter') saveEdit(chip.id)
-                          if (event.key === 'Escape') cancelEdit()
-                        }}
-                        maxLength={10}
-                        autoFocus
-                        disabled={renameMutation.isPending}
-                        className="h-7 min-w-0 border-0 bg-transparent px-0 text-[14px] font-semibold shadow-none focus-visible:ring-0 md:text-[14px]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => saveEdit(chip.id)}
-                        disabled={!editLabel.trim() || renameMutation.isPending}
-                        className="flex size-8 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary/10 disabled:opacity-40"
-                        aria-label="저장"
-                      >
-                        <Check className="size-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEdit}
-                        className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-                        aria-label="수정 취소"
-                      >
-                        <X className="size-4" />
-                      </button>
-                    </div>
-                    {supportsColor ? (
-                      <RelationTagColorPicker
-                        value={editColor}
-                        onChange={setEditColor}
-                      />
-                    ) : null}
-                  </div>
+                  <TagInlineEditor
+                    label={editLabel}
+                    onLabelChange={setEditLabel}
+                    color={supportsColor ? editColor : undefined}
+                    onColorChange={supportsColor ? setEditColor : undefined}
+                    pending={renameMutation.isPending}
+                    onSave={() => saveEdit(chip.id)}
+                    onCancel={cancelEdit}
+                  />
                 ) : (
                   <TagSettingRow
                     chip={chip}
@@ -205,36 +171,14 @@ export function TagTypePanel({
           </p>
         )}
 
-        <ListGroupInset className="flex items-center gap-2 px-3">
-          {supportsColor ? (
-            <span
-              className="size-6 shrink-0 rounded-full border border-background shadow-sm ring-1 ring-border"
-              style={{ backgroundColor: normalizeChipColor(draftColor) }}
-              aria-hidden
-            />
-          ) : null}
-          <Input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="새 태그 이름 (10자 이내)"
-            maxLength={10}
-            onKeyDown={(event) => {
-              if (isImeComposing(event)) return
-              if (event.key === 'Enter') createTag()
-            }}
-            className="h-9 border-0 bg-transparent text-[14px] shadow-none focus-visible:ring-0"
-          />
-          <Button
-            variant="outline"
-            size="pill-sm"
-            disabled={!draft.trim() || createMutation.isPending}
-            onClick={createTag}
-            className="shrink-0 border-border/60"
-          >
-            <Plus className="size-3.5" />
-            추가
-          </Button>
-        </ListGroupInset>
+        <TagCreateRow
+          value={draft}
+          onChange={setDraft}
+          onSubmit={createTag}
+          placeholder="새 태그 이름 (10자 이내)"
+          swatchColor={supportsColor ? draftColor : undefined}
+          pending={createMutation.isPending}
+        />
         {supportsColor ? (
           <RelationTagColorPicker
             className="mt-2"

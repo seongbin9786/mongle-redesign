@@ -4,6 +4,7 @@ export type AppActivityName =
   | 'Main'
   | 'Person'
   | 'PersonNew'
+  | 'PeopleSearch'
   | 'PersonEdit'
   | 'EventDetail'
   | 'Record'
@@ -44,6 +45,8 @@ export function activityUrl<TActivityName extends AppActivityName>(
     }
     case 'PersonNew':
       return '/people/new'
+    case 'PeopleSearch':
+      return '/people/search'
     case 'PersonEdit': {
       const { personId } = activityParams as InferActivityParams<'PersonEdit'>
       return `/people/${pathParam(personId)}/edit`

@@ -26,8 +26,8 @@ data class PersonRequest(
     val profileImageUrl: String? = null,
     @field:Schema(description = "기본 아바타 선택용 성별 힌트(선택).", example = "FEMALE", nullable = true)
     val gender: PersonGender? = null,
-    @field:Schema(description = "관계 유형 자유 서술(선택).", example = "대학 동기", nullable = true)
-    val relationType: String? = null,
+    @field:Schema(description = "소속 칩 id(선택). 한 사람당 하나. 루트·하위 어느 쪽이든 지정할 수 있다.", example = "42", nullable = true)
+    val affiliationChipId: Long? = null,
     @field:Schema(description = "관계태그 칩 id 목록. 선택 개수 상한이 있다.", example = "[11, 12]")
     val relationTagChipIds: List<Long> = emptyList(),
     @field:Schema(description = "좋아하는 것(선택). 취향 목록.", example = "[\"커피\", \"러닝\"]")
@@ -38,11 +38,15 @@ data class PersonRequest(
     val favorite: Boolean = false,
 )
 
-/** 디렉토리 정렬. 어느 정렬이든 즐겨찾기는 항상 상단 그룹으로 뜬다(#29). */
-@Schema(description = "인물 디렉토리 정렬. NAME=가나다, RECENT=최근 순. 어느 정렬이든 즐겨찾기는 항상 상단 그룹.")
+/**
+ * 디렉토리 정렬. 어느 정렬이든 즐겨찾기는 항상 앞선다(#29).
+ * 섹션으로 나누지 않고 정렬 우선순위로만 드러낸다 — 목록은 하나의 그룹이다(mustpass people-directory).
+ */
+@Schema(description = "인물 디렉토리 정렬. RECENT=마지막 만남 순(기본), RECORD_COUNT=기록 많은 순, NAME=이름 순. 어느 정렬이든 즐겨찾기가 앞선다.")
 enum class PersonSort {
-    NAME,
     RECENT,
+    RECORD_COUNT,
+    NAME,
 }
 
 /** 생일 연도-선택: 월·일은 함께, 연도는 생략 가능. 셋 다 없으면 요청에서 birthday 자체를 null 로 보낸다. */
@@ -61,7 +65,7 @@ data class Birthday(
     }
 }
 
-@Schema(description = "인물 응답. 관계태그는 요약 참조로 실어 클라이언트가 재조회 없이 그린다.")
+@Schema(description = "인물 응답. 소속·관계태그는 요약 참조로 실어 클라이언트가 재조회 없이 그린다.")
 data class PersonResponse(
     @field:Schema(description = "인물 id.", example = "7")
     val id: Long,
@@ -77,8 +81,8 @@ data class PersonResponse(
     val profileImageUrl: String?,
     @field:Schema(description = "기본 아바타 선택용 성별 힌트(없을 수 있음).", example = "FEMALE", nullable = true)
     val gender: PersonGender?,
-    @field:Schema(description = "관계 유형(없을 수 있음).", example = "대학 동기", nullable = true)
-    val relationType: String?,
+    @field:Schema(description = "소속(없을 수 있음). 하위 소속이면 parent 에 루트가 실린다.", nullable = true)
+    val affiliation: AffiliationRef?,
     @field:Schema(description = "관계태그 칩 요약 참조 목록.")
     val relationTags: List<ChipRef>,
     @field:Schema(description = "좋아하는 것 목록.", example = "[\"커피\", \"러닝\"]")
@@ -87,15 +91,22 @@ data class PersonResponse(
     val cautions: List<String>,
     @field:Schema(description = "즐겨찾기 여부.", example = "true")
     val favorite: Boolean,
+    @field:Schema(description = "함께 새긴 기록 수. '기록 많은 순' 정렬과 목록 표시가 함께 쓴다.", example = "20")
+    val recordCount: Int,
     @field:Schema(description = "등록 시각.", example = "2026-01-10T09:00:00", nullable = true)
     val createdAt: LocalDateTime?,
 ) {
     companion object {
         /**
          * relationTagChipIds 는 PersonRelationTag 조인 엔티티에서 서비스가 읽은 (순서 보존) 칩 id 목록,
-         * tagDisplays 는 그 칩에서 해석한 (id→표시정보) 맵. 소프트삭제된 칩도 라벨은 보인다.
+         * chipDisplays 는 그 칩과 소속 칩에서 해석한 (id→표시정보) 맵. 소프트삭제된 칩도 라벨은 보인다.
          */
-        fun from(person: Person, relationTagChipIds: List<Long>, tagDisplays: Map<Long, ChipDisplay>): PersonResponse = PersonResponse(
+        fun from(
+            person: Person,
+            relationTagChipIds: List<Long>,
+            chipDisplays: Map<Long, ChipDisplay>,
+            recordCount: Int = 0,
+        ): PersonResponse = PersonResponse(
             id = requireNotNull(person.id) { "저장되지 않은 Person은 응답으로 변환할 수 없습니다." },
             name = person.name,
             birthday = Birthday.from(person),
@@ -103,13 +114,14 @@ data class PersonResponse(
             lastMetDate = person.lastMetDate,
             profileImageUrl = person.profileImageUrl,
             gender = person.gender?.let { PersonGender.valueOf(it.name) },
-            relationType = person.relationType,
+            affiliation = AffiliationRef.of(person.affiliationChipId, chipDisplays),
             relationTags = relationTagChipIds.mapNotNull { id ->
-                tagDisplays[id]?.let { ChipRef(id, it.label, it.color) }
+                chipDisplays[id]?.let { ChipRef(id, it.label, it.color) }
             },
             likes = person.likes.toList(),
             cautions = person.cautions.toList(),
             favorite = person.favorite,
+            recordCount = recordCount,
             createdAt = person.createdAt,
         )
     }
@@ -163,8 +175,8 @@ data class PersonDetailResponse(
     val profileImageUrl: String?,
     @field:Schema(description = "기본 아바타 선택용 성별 힌트(없을 수 있음).", example = "FEMALE", nullable = true)
     val gender: PersonGender?,
-    @field:Schema(description = "관계 유형(없을 수 있음).", example = "대학 동기", nullable = true)
-    val relationType: String?,
+    @field:Schema(description = "소속(없을 수 있음). 하위 소속이면 parent 에 루트가 실린다.", nullable = true)
+    val affiliation: AffiliationRef?,
     @field:Schema(description = "관계태그 칩 요약 참조 목록.")
     val relationTags: List<ChipRef>,
     @field:Schema(description = "좋아하는 것 목록.", example = "[\"커피\", \"러닝\"]")
@@ -183,7 +195,7 @@ data class PersonDetailResponse(
             person: Person,
             stats: PersonStatsData,
             relationTagChipIds: List<Long>,
-            tagDisplays: Map<Long, ChipDisplay>,
+            chipDisplays: Map<Long, ChipDisplay>,
             today: LocalDate,
         ): PersonDetailResponse = PersonDetailResponse(
             id = requireNotNull(person.id) { "저장되지 않은 Person은 응답으로 변환할 수 없습니다." },
@@ -193,8 +205,8 @@ data class PersonDetailResponse(
             lastMetDate = stats.lastMetDate,
             profileImageUrl = person.profileImageUrl,
             gender = person.gender?.let { PersonGender.valueOf(it.name) },
-            relationType = person.relationType,
-            relationTags = relationTagChipIds.mapNotNull { id -> tagDisplays[id]?.let { ChipRef(id, it.label, it.color) } },
+            affiliation = AffiliationRef.of(person.affiliationChipId, chipDisplays),
+            relationTags = relationTagChipIds.mapNotNull { id -> chipDisplays[id]?.let { ChipRef(id, it.label, it.color) } },
             likes = person.likes.toList(),
             cautions = person.cautions.toList(),
             favorite = person.favorite,

@@ -9,7 +9,7 @@ import { usePersonDelete } from '@/components/person/use-person-delete'
 import { Button } from '@/components/ui/button'
 import { ScrollBody } from '@/components/ui/scroll-body'
 import { StatusMessage } from '@/components/ui/status-message'
-import { personMutation } from '@/apis/mutations'
+import { chipMutation, personMutation } from '@/apis/mutations'
 import { chipQuery, homeQuery, personQuery } from '@/apis/queries'
 import { useEnterDone } from '@/stackflow/use-enter-done'
 import { featureEvents, trackFeature } from '@/lib/analytics'
@@ -34,6 +34,20 @@ export const PersonEditActivity: ActivityComponentType<'PersonEdit'> = ({
   const person = personDetailQuery.data
   const relationTags =
     chipsQuery.data?.filter((c) => c.type === 'RELATION_TAG') ?? []
+  const affiliations =
+    chipsQuery.data?.filter((c) => c.type === 'AFFILIATION') ?? []
+
+  // 수정 중에도 없는 소속을 바로 만들 수 있게 한다(등록 화면과 같은 규칙).
+  // 폼은 initialValues 로만 초기화되므로 만든 소속의 선택은 폼이 스스로 이어받는다.
+  const affiliationMutation = useMutation({
+    ...chipMutation.create(),
+    onSuccess: async () => {
+      void trackFeature(featureEvents.tagCreated, {
+        tag_type: 'affiliation',
+      })
+      await queryClient.invalidateQueries({ queryKey: chipQuery.allKey })
+    },
+  })
 
   const updateMutation = useMutation({
     ...personMutation.update(id),
@@ -95,6 +109,15 @@ export const PersonEditActivity: ActivityComponentType<'PersonEdit'> = ({
             formId={PERSON_FORM_ID}
             initialValues={initialValues}
             relationTags={relationTags}
+            affiliations={affiliations}
+            onCreateAffiliation={(label, parentId) =>
+              affiliationMutation.mutate({
+                type: 'AFFILIATION',
+                label,
+                parentId: parentId ?? undefined,
+              })
+            }
+            creatingAffiliation={affiliationMutation.isPending}
             pending={updateMutation.isPending || del.pending}
             onSubmit={(request) => updateMutation.mutate(request)}
             onDelete={handleDelete}

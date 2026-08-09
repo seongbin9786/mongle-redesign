@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { PersonEditForm } from '@/components/person/person-edit-form'
 import type { PersonFormValues } from '@/components/person/person-form'
+import type { ChipResponse } from '@/apis/generated/mongle-api.schemas'
 
 const emptyValues: PersonFormValues = {
   name: '',
   profileImageUrl: null,
   gender: '',
-  relationType: '',
+  affiliationChipId: null,
   relationTagChipIds: [],
   likes: [],
   cautions: [],
@@ -24,7 +25,7 @@ const prefilledValues: PersonFormValues = {
   name: '김민수',
   profileImageUrl: 'https://picsum.photos/200',
   gender: 'MALE',
-  relationType: '회사 동료',
+  affiliationChipId: 21,
   relationTagChipIds: [1, 3],
   likes: ['등산', '아메리카노'],
   cautions: ['갑작스런 약속'],
@@ -44,6 +45,39 @@ const relationTags = [
   { id: 3, label: '같은 동네', color: '#f97316' },
 ]
 
+const affiliations: ChipResponse[] = [
+  {
+    id: 20,
+    type: 'AFFILIATION',
+    parentId: null,
+    label: '학교',
+    color: '#0EA5E9',
+    personal: true,
+    order: 0,
+    default: false,
+  },
+  {
+    id: 21,
+    type: 'AFFILIATION',
+    parentId: 20,
+    label: '대학교',
+    color: null,
+    personal: true,
+    order: 1,
+    default: false,
+  },
+  {
+    id: 22,
+    type: 'AFFILIATION',
+    parentId: null,
+    label: '직장',
+    color: '#22A06B',
+    personal: true,
+    order: 2,
+    default: false,
+  },
+]
+
 const meta = {
   title: 'Person/PersonEditForm',
   component: PersonEditForm,
@@ -51,6 +85,7 @@ const meta = {
   args: {
     initialValues: emptyValues,
     relationTags: [],
+    affiliations,
     onSubmit: () => {},
     onDelete: () => {},
   },

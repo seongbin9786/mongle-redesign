@@ -55,28 +55,50 @@ class PersonService(
     }
 
     /**
-     * 디렉토리 목록(#29). 즐겨찾기를 항상 상단 그룹으로 두고 그 안에서 정렬한다:
-     * 이름순(대소문자 무시) / 최근 만남순(마지막 만난 날 최신 먼저·없는 사람은 뒤).
-     * 검색은 이름·관계 유형 부분 일치(대소문자 무시). 즐겨찾기 상단 조건이 있어 in-memory 로 조합한다.
-     * (최근 만남순의 마지막 만난 날은 이후 파생 단계에서 event 반영으로 갱신된다.)
+     * 디렉토리 목록(#29). 즐겨찾기가 어느 정렬에서든 앞서고, 그 안에서 정렬한다:
+     * 마지막 만남순(기본·최신 먼저, 없는 사람은 뒤) / 기록 많은 순 / 이름순(대소문자 무시).
+     * 즐겨찾기 우선 조건이 있어 in-memory 로 조합한다.
+     * (마지막 만난 날은 파생 단계에서 event 반영으로 갱신된다.)
      */
     fun directory(userId: UUID, sort: PersonSort, query: String?): List<PersonResponse> {
+        val all = personRepository.findByOwnerIdAndDeletedAtIsNull(userId)
+        // 표시값(소속·관계태그 라벨)은 검색 대상이기도 해서 필터보다 먼저 해석한다.
+        val tagChipIdsByPerson = relationTagChipIdsByPerson(all)
+        val chipDisplays = resolveChipDisplays(all, tagChipIdsByPerson)
+        val recordCounts = recordCountsOf(all)
+
         val keyword = query?.trim()?.lowercase()?.ifBlank { null }
+        val matched = all.filter { keyword == null || it.matches(keyword, tagChipIdsByPerson, chipDisplays) }
+
         val within = when (sort) {
-            PersonSort.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { p: Person -> p.name }
             PersonSort.RECENT -> Comparator.comparing(Person::lastMetDate, Comparator.nullsLast(Comparator.reverseOrder<LocalDate>()))
+            PersonSort.RECORD_COUNT -> compareByDescending<Person> { recordCounts[it.id] ?: 0 }
+            PersonSort.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { p: Person -> p.name }
         }
-        val order = compareByDescending<Person> { it.favorite }.then(within)
-        val persons = personRepository.findByOwnerIdAndDeletedAtIsNull(userId)
-            .filter { keyword == null || it.matches(keyword) }
-            .sortedWith(order)
-        // 관계태그·라벨을 한 번에 로드해 인물별 N+1 을 막는다.
-        val tagChipIdsByPerson = relationTagChipIdsByPerson(persons)
-        val tagDisplays = resolveTagDisplays(tagChipIdsByPerson.values.flatten())
-        return persons.map { PersonResponse.from(it, tagChipIdsByPerson[it.id].orEmpty(), tagDisplays) }
+        // 같은 값이 몰리는 정렬(기록 0건·만남 없음)에서 순서가 요청마다 흔들리지 않게 이름으로 마무리한다.
+        val order = compareByDescending<Person> { it.favorite }
+            .then(within)
+            .then(compareBy(String.CASE_INSENSITIVE_ORDER) { p: Person -> p.name })
+
+        return matched.sortedWith(order).map {
+            PersonResponse.from(it, tagChipIdsByPerson[it.id].orEmpty(), chipDisplays, recordCounts[it.id] ?: 0)
+        }
     }
 
-    private fun Person.matches(keyword: String): Boolean = name.lowercase().contains(keyword) || relationType?.lowercase()?.contains(keyword) == true
+    /** 검색 대상은 이름 + 소속(루트·하위 라벨) + 관계태그 라벨. 사람을 떠올리는 단서가 이름만은 아니다. */
+    private fun Person.matches(
+        keyword: String,
+        tagChipIdsByPerson: Map<Long, List<Long>>,
+        chipDisplays: Map<Long, ChipDisplay>,
+    ): Boolean {
+        if (name.lowercase().contains(keyword)) return true
+        val affiliationLabels = affiliationChipId?.let { chipId ->
+            val display = chipDisplays[chipId]
+            listOfNotNull(display?.label, display?.parentId?.let { chipDisplays[it]?.label })
+        }.orEmpty()
+        val tagLabels = tagChipIdsByPerson[id].orEmpty().mapNotNull { chipDisplays[it]?.label }
+        return (affiliationLabels + tagLabels).any { it.lowercase().contains(keyword) }
+    }
 
     /** 상세 조회(#25). 기본 정보 + 파생 스탯(#30). 내 소유·active 인물만, 아니면 NOT_FOUND. */
     fun detail(userId: UUID, personId: Long): PersonDetailResponse {
@@ -84,7 +106,8 @@ class PersonService(
             ?: throw BusinessException(ErrorCode.NOT_FOUND)
         val stats = personStatsService.statsOf(person)
         val tagChipIds = relationTagChipIdsOf(person)
-        return PersonDetailResponse.from(person, stats, tagChipIds, resolveTagDisplays(tagChipIds), LocalDate.now())
+        val displays = resolveChipDisplays(listOf(person), mapOf(personId to tagChipIds))
+        return PersonDetailResponse.from(person, stats, tagChipIds, displays, LocalDate.now())
     }
 
     /** 즐겨찾기 토글(#28). 내 소유·active 인물만, 아니면 NOT_FOUND. */
@@ -126,8 +149,11 @@ class PersonService(
         Validators.requireNotBlank(name, Messages.REQUIRED_NAME)
         Validators.maxLength(name, ValidationLimits.NAME_MAX)
 
-        val relationType = request.relationType?.trim()?.ifBlank { null }
-        relationType?.let { Validators.maxLength(it, ValidationLimits.RELATION_TYPE_MAX) }
+        val affiliationChipId = request.affiliationChipId
+        if (affiliationChipId != null) {
+            val allowedAffiliationIds = chipService.visibleChips(userId, ChipType.AFFILIATION).mapNotNull { it.id }.toSet()
+            if (affiliationChipId !in allowedAffiliationIds) throw BusinessException(ErrorCode.NOT_FOUND)
+        }
 
         val birthday = request.birthday
         PersonValidator.validateDates(
@@ -159,7 +185,7 @@ class PersonService(
         person.lastMetDate = request.lastMetDate
         person.profileImageUrl = request.profileImageUrl?.trim()?.ifBlank { null }
         person.gender = request.gender?.let { PersonGender.valueOf(it.name) }
-        person.relationType = relationType
+        person.affiliationChipId = affiliationChipId
         person.favorite = request.favorite
         person.replaceLikes(likes)
         person.replaceCautions(cautions)
@@ -187,15 +213,37 @@ class PersonService(
     }
 
     /**
-     * 관계 태그 라벨은 칩에서 해석한다 — id 참조라 이름이 바뀌면 자동 반영되고,
+     * 소속·관계 태그 라벨은 칩에서 해석한다 — id 참조라 이름이 바뀌면 자동 반영되고,
      * 소프트삭제된 칩도 findAllById 로 잡혀 라벨이 유지된다(과거 참조 보존, 00-infra).
      */
     private fun toResponse(person: Person): PersonResponse {
         val tagChipIds = relationTagChipIdsOf(person)
-        return PersonResponse.from(person, tagChipIds, resolveTagDisplays(tagChipIds))
+        val personId = requireNotNull(person.id)
+        val displays = resolveChipDisplays(listOf(person), mapOf(personId to tagChipIds))
+        return PersonResponse.from(person, tagChipIds, displays, recordCountsOf(listOf(person))[personId] ?: 0)
     }
 
-    private fun resolveTagDisplays(chipIds: List<Long>): Map<Long, ChipDisplay> = chipRepository.findAllById(chipIds)
-        .mapNotNull { chip -> chip.id?.let { it to ChipDisplay(chip.label, chip.color) } }
-        .toMap()
+    /**
+     * 인물들이 참조하는 칩(소속·관계태그)을 한 번에 해석한다.
+     * 하위 소속은 루트를 알아야 색·경로를 그릴 수 있어 상위 칩까지 2차로 더 로드한다(최대 2쿼리).
+     */
+    private fun resolveChipDisplays(persons: List<Person>, tagChipIdsByPerson: Map<Long, List<Long>>): Map<Long, ChipDisplay> {
+        val referenced = persons.mapNotNull { it.affiliationChipId } + tagChipIdsByPerson.values.flatten()
+        if (referenced.isEmpty()) return emptyMap()
+        val displays = chipRepository.findAllById(referenced.distinct())
+            .mapNotNull { chip -> chip.id?.let { it to ChipDisplay(chip.label, chip.color, chip.parentId) } }
+            .toMap()
+        val missingParents = displays.values.mapNotNull { it.parentId }.filter { it !in displays }.distinct()
+        if (missingParents.isEmpty()) return displays
+        val parents = chipRepository.findAllById(missingParents)
+            .mapNotNull { chip -> chip.id?.let { it to ChipDisplay(chip.label, chip.color, chip.parentId) } }
+        return displays + parents
+    }
+
+    /** 기록 수 배치 집계(정렬·표시 공용). 기록이 0건인 인물은 집계 결과에 없어 호출부가 0으로 읽는다. */
+    private fun recordCountsOf(persons: List<Person>): Map<Long, Int> {
+        val personIds = persons.mapNotNull { it.id }
+        if (personIds.isEmpty()) return emptyMap()
+        return eventRepository.countByPersonIdIn(personIds).associate { it.personId to it.count.toInt() }
+    }
 }

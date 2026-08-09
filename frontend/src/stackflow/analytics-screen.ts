@@ -2,6 +2,7 @@ import { isMainTab } from '@/stackflow/stackflow.config'
 
 const SCREEN_BY_ACTIVITY = {
   PersonNew: 'person_new',
+  PeopleSearch: 'people_search',
   PersonEdit: 'person_edit',
   EventDetail: 'event_detail',
   Record: 'record',

@@ -8,6 +8,7 @@ import {
   timelineQuery,
 } from '@/apis/queries'
 import { ScrollBody } from '@/components/ui/scroll-body'
+import { AffiliationPanel } from '@/stackflow/activities/settings/affiliation-panel'
 import { TagTypePanel } from '@/stackflow/activities/settings/tag-type-panel'
 
 const TAG_GROUPS = [
@@ -30,6 +31,7 @@ const TAG_GROUPS = [
 const MANAGED_TAG_TYPES = new Set<ChipResponseType>([
   'CATEGORY',
   'RELATION_TAG',
+  'AFFILIATION',
 ])
 
 export function TagSettingsPage() {
@@ -40,8 +42,24 @@ export function TagSettingsPage() {
     MANAGED_TAG_TYPES.has(chip.type),
   )
 
+  // 칩 라벨·색은 사람·기록·홈·타임라인 어디에나 박혀 보이므로 한 번 바뀌면 전부 무효화한다.
+  const invalidateAll = () => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: chipQuery.allKey }),
+      queryClient.invalidateQueries({ queryKey: personQuery.allKey }),
+      queryClient.invalidateQueries({ queryKey: homeQuery.allKey }),
+      queryClient.invalidateQueries({ queryKey: eventQuery.allKey }),
+      queryClient.invalidateQueries({ queryKey: timelineQuery.allKey }),
+    ])
+  }
+
   return (
     <ScrollBody pad="screen" className="space-y-7">
+      {/* 소속은 사람의 축(한 명당 하나)이라 여러 개 붙는 태그들보다 먼저 둔다. */}
+      <AffiliationPanel
+        chips={chips.filter((chip) => chip.type === 'AFFILIATION')}
+        onChanged={invalidateAll}
+      />
       {TAG_GROUPS.map((group) => (
         <TagTypePanel
           key={group.type}
@@ -49,17 +67,7 @@ export function TagSettingsPage() {
           label={group.label}
           description={group.description}
           chips={chips.filter((chip) => chip.type === group.type)}
-          onChanged={() => {
-            void Promise.all([
-              queryClient.invalidateQueries({ queryKey: chipQuery.allKey }),
-              queryClient.invalidateQueries({ queryKey: personQuery.allKey }),
-              queryClient.invalidateQueries({ queryKey: homeQuery.allKey }),
-              queryClient.invalidateQueries({ queryKey: eventQuery.allKey }),
-              queryClient.invalidateQueries({
-                queryKey: timelineQuery.allKey,
-              }),
-            ])
-          }}
+          onChanged={invalidateAll}
         />
       ))}
     </ScrollBody>

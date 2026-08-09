@@ -6,7 +6,7 @@
 
 ## 2계층 · 종류 독립 (must)
 
-- 칩은 **종류(type) 4가지**(감정·날씨·카테고리·관계태그)로 나뉘고 **각 종류는 독립 세트**다 — 중복·개수·기본값 규칙은 종류 안에서만 따진다.
+- 칩은 **종류(type) 5가지**(감정·날씨·카테고리·관계태그·소속)로 나뉘고 **각 종류는 독립 세트**다 — 중복·개수·기본값 규칙은 종류 안에서만 따진다.
 - 칩은 **2계층**이다: 공통(`ownerId == null`, 모두 공유) · 개인(`ownerId == 사용자`, 그 사람만).
 - 관계태그는 **공통용이 없다**(모두 개인). 나머지 3종은 공통 시드가 있다.
 
@@ -21,6 +21,7 @@
 
 - 라벨은 **1~10자**(`CHIP_NAME_MAX`). 비면 400 `REQUIRED_FIELD`("칩 이름을 입력해 주세요."), 초과면 400 `LENGTH_EXCEEDED`.
 - **같은 종류 안 중복 금지** — 대상은 공통(전체) + 내 개인(active). 위반 시 409 `DUPLICATE`.
+    - 단, **소속은 같은 상위 안에서만** 중복을 막는다 — `학교 > 동아리` 와 `직장 > 동아리` 는 다른 소속이다.
 - 개인 칩은 **종류별 최대 30개**(`CHIP_PER_KIND_MAX`). 31번째는 400 `CHIP_LIMIT`.
 - 새로 만든 개인 칩은 그 종류 개인 칩 중 마지막 순서로 붙는다.
 
@@ -30,6 +31,17 @@
 - 개인 칩만 가능. 공통 칩·타인 칩·없는 id 변경 시도는 404 `NOT_FOUND`.
 - 중복·글자수 검증은 생성과 동일(중복 검사에서 자기 자신은 제외).
 - 이름변경 응답도 **목록 조회와 같은 규칙으로 기본 카테고리(`default`)를 표시**한다(카테고리 외 종류는 항상 false).
+
+## 계층 — 소속 전용 (must)
+
+- **소속(AFFILIATION)만 `parentId` 로 계층을 갖는다.** 다른 종류에 `parentId` 를 주면 400 `INVALID_INPUT`.
+- **깊이는 1단계.** 상위는 언제나 루트(`parentId == null`)여야 하고, 손자를 만들려 하면 400 `INVALID_INPUT`.
+    - 자식이 있는 칩을 다른 칩 아래로 옮기는 것도 같은 이유로 400 `INVALID_INPUT`.
+    - 자기 자신을 상위로 지정하면 400 `INVALID_INPUT`.
+- **하위 소속은 색을 갖지 않는다** — 색을 보내도 무시하고 null 로 저장한다. 표시 색은 루트가 정한다.
+- 없는·타인·다른 종류의 상위 칩은 404 `NOT_FOUND`.
+- **루트를 삭제하면 하위도 함께 소프트삭제**된다 — 갈 곳 없는 하위가 목록에 남지 않게. 인물의 참조는 끊지 않는다(과거 참조 보존).
+- 소속은 공통 시드가 없다(관계태그와 같이 전부 개인).
 
 ## 삭제 / 숨김 (must, #19 — 단일 DELETE 분기)
 
@@ -61,6 +73,12 @@
 | 공통 라벨과 동일 | POST /api/v1/chips | 409 `DUPLICATE` |
 | 같은 종류 개인 칩 31번째 | POST /api/v1/chips | 400 `CHIP_LIMIT` |
 | 다른 종류엔 같은 라벨 | POST /api/v1/chips | 201 (종류 독립) |
+| 다른 상위 아래 같은 라벨 소속 | POST /api/v1/chips (AFFILIATION, parentId 다름) | 201 |
+| 같은 상위 아래 같은 라벨 소속 | POST /api/v1/chips (AFFILIATION, parentId 동일) | 409 `DUPLICATE` |
+| 하위 소속을 상위로 지정 | POST /api/v1/chips (parentId=하위id) | 400 `INVALID_INPUT` |
+| 관계태그에 parentId | POST /api/v1/chips (RELATION_TAG) | 400 `INVALID_INPUT` |
+| 하위 소속에 color | POST /api/v1/chips (parentId 있음) | 201, color=null |
+| 루트 소속 삭제 | DELETE /api/v1/chips/{루트id} | 204, 하위도 함께 소프트삭제 |
 | 개인 칩 이름 변경 | PATCH /api/v1/chips/{id} | 200, id 유지·label 변경 |
 | 공통 칩 이름 변경 | PATCH /api/v1/chips/{공통id} | 404 `NOT_FOUND` |
 | 개인 칩 삭제 | DELETE /api/v1/chips/{개인id} | 204, deletedAt 세팅, 목록서 제외 |

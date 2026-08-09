@@ -64,6 +64,18 @@ class DemoDataSeeder(
             ),
         )
 
+        // 소속도 공통용이 없어 개인 칩으로 시드한다. '학교 > 대학교'로 1단계 중첩 케이스를 함께 심어
+        // 목록의 하위 chip 표시(mustpass people-directory)가 데모에서 바로 검증된다.
+        val affiliationIds = ensureAffiliations(
+            ownerId,
+            listOf(
+                AffiliationSeed("학교", "#0EA5E9", children = listOf("대학교")),
+                AffiliationSeed("직장", "#22A06B"),
+                AffiliationSeed("가족", "#E85D75"),
+                AffiliationSeed("동네", "#F97316"),
+            ),
+        )
+
         // 기록·인물이 참조할 공통 칩(감정·날씨·카테고리)을 라벨→id 로 해석.
         val category = commonChipIds(ChipType.CATEGORY)
         val weather = commonChipIds(ChipType.WEATHER)
@@ -74,7 +86,7 @@ class DemoDataSeeder(
             Person(
                 ownerId = ownerId,
                 name = "김서연",
-                relationType = "대학 친구",
+                affiliationChipId = affiliationIds.getValue("학교 > 대학교"),
                 gender = PersonGender.FEMALE,
                 birthYear = 1995, birthMonth = 4, birthDay = 12,
                 firstMetDate = today.minusYears(3),
@@ -90,7 +102,7 @@ class DemoDataSeeder(
             Person(
                 ownerId = ownerId,
                 name = "이준호",
-                relationType = "회사 동료",
+                affiliationChipId = affiliationIds.getValue("직장"),
                 gender = PersonGender.MALE,
                 // 생일 연도 생략(월·일만) — 연도-선택 케이스 데모.
                 birthMonth = 9,
@@ -106,7 +118,7 @@ class DemoDataSeeder(
             Person(
                 ownerId = ownerId,
                 name = "박민지",
-                relationType = "동생",
+                affiliationChipId = affiliationIds.getValue("가족"),
                 gender = PersonGender.FEMALE,
                 birthYear = 2000,
                 birthMonth = 11,
@@ -121,7 +133,7 @@ class DemoDataSeeder(
             Person(
                 ownerId = ownerId,
                 name = "최윤서",
-                relationType = "동네 친구",
+                affiliationChipId = affiliationIds.getValue("동네"),
                 gender = PersonGender.FEMALE,
                 // 생일 없음.
                 firstMetDate = today.minusYears(1).minusMonths(2),
@@ -136,7 +148,7 @@ class DemoDataSeeder(
             Person(
                 ownerId = ownerId,
                 name = "정하준",
-                relationType = "동아리 후배",
+                affiliationChipId = affiliationIds.getValue("학교 > 대학교"),
                 gender = PersonGender.MALE,
                 birthYear = 1998,
                 birthMonth = 7,
@@ -199,6 +211,40 @@ class DemoDataSeeder(
             )
             label to chip.id!!
         }
+    }
+
+    /** 소속 시드 한 줄. children 은 이 소속 아래 1단계 하위 소속 라벨(색은 루트만 갖는다). */
+    private data class AffiliationSeed(
+        val label: String,
+        val color: String,
+        val children: List<String> = emptyList(),
+    )
+
+    /**
+     * 현재 사용자 개인 소속 칩을 라벨로 보장하고 `라벨→id` 를 돌려준다.
+     * 하위 소속의 키는 `"루트 > 하위"` — 라벨만으로는 다른 루트의 동명 하위와 구분되지 않기 때문.
+     */
+    private fun ensureAffiliations(ownerId: UUID, seeds: List<AffiliationSeed>): Map<String, Long> {
+        val existing = chipRepository
+            .findByTypeAndOwnerIdAndDeletedAtIsNullOrderByDisplayOrderAsc(ChipType.AFFILIATION, ownerId)
+        var order = existing.maxOfOrNull { it.displayOrder }?.plus(1) ?: 0
+        val ids = mutableMapOf<String, Long>()
+
+        seeds.forEach { seed ->
+            val root = existing.firstOrNull { it.root && it.label == seed.label }?.apply { changeColor(seed.color) }
+                ?: chipRepository.save(
+                    Chip(type = ChipType.AFFILIATION, ownerId = ownerId, label = seed.label, color = seed.color, displayOrder = order++),
+                )
+            ids[seed.label] = root.id!!
+            seed.children.forEach { childLabel ->
+                val child = existing.firstOrNull { it.parentId == root.id && it.label == childLabel }
+                    ?: chipRepository.save(
+                        Chip(type = ChipType.AFFILIATION, ownerId = ownerId, label = childLabel, displayOrder = order++, parentId = root.id),
+                    )
+                ids["${seed.label} > $childLabel"] = child.id!!
+            }
+        }
+        return ids
     }
 
     private fun commonChipIds(type: ChipType): Map<String, Long> = chipRepository

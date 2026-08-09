@@ -5,6 +5,11 @@ import type { EventResponse } from '@/apis/generated/mongle-api.schemas'
 import { eventQuery, personQuery } from '@/apis/queries'
 import { DeletePersonConfirm } from '@/components/person/delete-person-confirm'
 import { usePersonDelete } from '@/components/person/use-person-delete'
+import {
+  affiliationColor,
+  affiliationDetailLabel,
+  affiliationLabel,
+} from '@/lib/affiliation'
 import { MonogramAvatar } from '@/components/ui/monogram-avatar'
 import { ScrollBody } from '@/components/ui/scroll-body'
 import { ListGroup } from '@/components/ui/list-group'
@@ -93,6 +98,7 @@ export function PersonProfileView({
                   personId={person.id}
                   favorite={person.favorite}
                   favoriteBadge="prominent"
+                  ringColor={affiliationColor(person.affiliation)}
                   className="size-20"
                 />
                 <div className="min-w-0 flex-1">
@@ -102,28 +108,30 @@ export function PersonProfileView({
                   >
                     {displayName}
                   </h1>
-                  {person.relationType ? (
+                  {affiliationLabel(person.affiliation) ? (
                     <p
                       data-amp-mask
-                      className="mt-2 text-sm font-semibold text-foreground"
+                      className="mt-2 flex items-center gap-1.5 text-sm font-semibold text-foreground"
                     >
-                      {person.relationType}
+                      {affiliationLabel(person.affiliation)}
+                      {affiliationDetailLabel(person.affiliation) ? (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          {affiliationDetailLabel(person.affiliation)}
+                        </span>
+                      ) : null}
                     </p>
                   ) : null}
                   {person.relationTags.length > 0 ? (
-                    <div data-amp-mask className="mt-2 flex flex-wrap gap-1.5">
-                      {person.relationTags.map((tag) => (
-                        <TagChip
-                          key={tag.id}
-                          interactive={false}
-                          surface="soft"
-                          color={tag.color}
-                          className="px-3 text-xs"
-                        >
-                          {tag.label}
-                        </TagChip>
-                      ))}
-                    </div>
+                    // 목록과 같은 규칙: 색을 갖는 축은 소속(ring) 하나뿐이고
+                    // 관계 태그는 #텍스트로 눕힌다(mustpass people-directory).
+                    <p
+                      data-amp-mask
+                      className="mt-2 text-caption font-medium text-muted-foreground"
+                    >
+                      {person.relationTags
+                        .map((tag) => `#${tag.label}`)
+                        .join(' ')}
+                    </p>
                   ) : null}
                 </div>
               </div>

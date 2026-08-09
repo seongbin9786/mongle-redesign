@@ -25,8 +25,24 @@ vi.mock('motion/react', () => ({
   },
   useReducedMotion: () => false,
 }))
+// 소속은 더 이상 하드코딩 추천값이 아니라 사용자 칩이라, 관계 단계 검증에 쓸 칩 하나를 심는다.
+// vi.mock 팩토리는 호이스팅되므로 픽스처도 vi.hoisted 로 함께 끌어올린다.
+const { affiliationChip } = vi.hoisted(() => ({
+  affiliationChip: {
+    id: 1,
+    type: 'AFFILIATION' as const,
+    parentId: null,
+    label: '친구',
+    color: '#0EA5E9',
+    personal: true,
+    order: 0,
+    default: false,
+  },
+}))
 vi.mock('@/apis/generated/mongle-api', () => ({
-  getChips: vi.fn().mockResolvedValue([]),
+  getChips: vi.fn(({ type }: { type: string }) =>
+    Promise.resolve(type === 'AFFILIATION' ? [affiliationChip] : []),
+  ),
   createPerson: vi.fn(),
 }))
 
@@ -72,7 +88,8 @@ describe('PersonNewActivity', () => {
     // 이름 단계에는 없던 저장 아이콘이 관계 단계부터 상시 노출된다
     expect(screen.getByRole('button', { name: '저장' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '친구' }))
+    // 소속 칩은 서버에서 오므로 도착을 기다린 뒤 고른다
+    await user.click(await screen.findByRole('button', { name: '친구' }))
     await user.click(screen.getByRole('button', { name: '다음' }))
     expect(screen.getByText('언제부터의 인연이에요?')).toBeInTheDocument()
 
