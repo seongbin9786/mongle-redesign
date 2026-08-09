@@ -232,6 +232,10 @@ export function RelationOrbitMap({
             1,
             Math.max(MIN_CROWD_SCALE, room / NODE_ROOM_PX),
           )
+          // 흐림(멀어진 관계 · 필터 미매칭)은 버튼이 아니라 거리감 레이어에 건다.
+          // opacity < 1도 filter처럼 3D를 평면화해서, 버튼에 걸면 자식의 세우기
+          // 회전이 '세우기'가 아니라 세로 찌그러짐으로 렌더된다.
+          const dimFactor = dimmed ? (distant ? 0.1 : 0.16) : distant ? 0.4 : 1
 
           return (
             <button
@@ -244,14 +248,12 @@ export function RelationOrbitMap({
                 onSelectPerson(node.id)
               }}
               className={cn(
-                'absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full p-1 outline-none transition-opacity duration-200 focus-visible:ring-2 focus-visible:ring-ring',
+                'absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 // 눕힌 판에서 사람을 세우려면 역회전이 '진짜 3D 회전'으로
                 // 남아야 한다. 버튼이 3D를 평면으로 눌러버리면 역회전은
-                // 세우기가 아니라 세로 찌그러짐으로 렌더된다.
+                // 세우기가 아니라 세로 찌그러짐으로 렌더된다. 그래서 이 버튼에는
+                // 평면화를 부르는 속성(opacity < 1, filter 등)을 걸지 않는다.
                 tilted && '[transform-style:preserve-3d]',
-                distant && 'opacity-40',
-                dimmed && 'opacity-[0.16]',
-                distant && dimmed && 'opacity-[0.1]',
               )}
               style={{
                 left: `${percent(placed.x)}%`,
@@ -274,9 +276,9 @@ export function RelationOrbitMap({
                 }
               >
                 <span
-                  className="block"
+                  className="block transition-opacity duration-200"
                   style={{
-                    opacity: cue.opacity,
+                    opacity: cue.opacity * dimFactor,
                     filter: cue.filter,
                     transform: `scale(${(cue.scale * crowdScale).toFixed(3)})`,
                   }}
