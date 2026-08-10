@@ -229,7 +229,7 @@ class DemoDataSeeder(
             birthYear = 1993
             birthMonth = 6
             birthDay = 28
-            firstMetDate = today.minusDays(190)
+            firstMetDate = today.minusDays(17)
         }
         val jihun = ctx.person("서지훈", PersonGender.MALE, "모임", listOf("운동")) {
             birthYear = 1995
@@ -260,126 +260,133 @@ class DemoDataSeeder(
         val harin = ctx.person("유하린", PersonGender.FEMALE, "동네", listOf("친구")) {
             birthMonth = 7
             birthDay = 21
-            firstMetDate = today.minusDays(24)
+            firstMetDate = today.minusDays(30)
             replaceLikes(listOf("산책", "고양이"))
         }
 
         // ── 만남 기록 ───────────────────────────────────────────────────────
-        // 회사 사람은 자주·짧게, 대학·고등학교는 뜸하게 몰아서, 가족은 본가에 한 번에 —
-        // 한 기록에 여러 사람을 묶는 경우(본가·크루 정기런)를 섞어 다중 연결도 데모에 남긴다.
-        ctx.meet(2, listOf(dohyeon), "즐거움", "편안", weatherLabel = "맑음") {
+        // 만남 주기를 사람마다 다르게 두되 최근 쪽에 몰지 않는다 — 한 주 안에 만난 사람이
+        // 여럿이면 현실감도 떨어지고, 안쪽 눈금에 얼굴이 겹쳐 노드가 붐빔 보정으로 작아진다.
+        // 한 기록에 여러 사람을 묶는 경우(본가, 팀 회식, 크루 정기런)를 섞어 다중 연결도 남긴다.
+
+        // 회사: 사수와 입사 동기는 자주, 팀장과 옆 팀은 사건 단위로 뜸하게.
+        ctx.meet(5, listOf(dohyeon), "즐거움", "편안", weatherLabel = "맑음") {
             memo = "퇴근하고 회사 앞에서 맥주 한 잔\n이직 고민 들어줬다"
         }
-        ctx.meet(23, listOf(dohyeon), "그냥", weatherLabel = "흐림") { memo = "점심에 새로 생긴 국밥집" }
-        ctx.meet(58, listOf(dohyeon), "즐거움", "반가움", weatherLabel = "더움") {
+        ctx.meet(26, listOf(dohyeon), "그냥", weatherLabel = "흐림") { memo = "점심에 새로 생긴 국밥집" }
+        ctx.meet(62, listOf(dohyeon), "즐거움", "반가움", weatherLabel = "더움") {
             title = "잠실 야구장"
             memo = "주말에 야구 보러\n9회말에 역전당했다"
         }
 
-        ctx.meet(5, listOf(seojun), "즐거움", "편안") {
+        ctx.meet(11, listOf(seojun), "즐거움", "편안") {
             occurredTime = LocalTime.of(19, 30)
             memo = "동기끼리 저녁\n연봉 얘기 반, 이직 얘기 반"
         }
-        ctx.meet(31, listOf(seojun), "그냥", weatherLabel = "비") { memo = "회사 근처 라멘집" }
-        ctx.meet(73, listOf(seojun), "즐거움") { memo = "주말 보드게임 카페" }
+        ctx.meet(38, listOf(seojun), "그냥", weatherLabel = "비") { memo = "회사 근처 라멘집" }
+        ctx.meet(76, listOf(seojun), "즐거움") { memo = "주말 보드게임 카페" }
 
-        ctx.meet(12, listOf(jieun, minseok, hayeong), "그냥", "아쉬움") {
+        ctx.meet(45, listOf(jieun, hayeong), "그냥", "아쉬움") {
             title = "팀 회식"
             memo = "분기 마감하고 회식\n2차는 도망쳤다"
         }
-        ctx.meet(40, listOf(jieun), "편안") { memo = "점심 먹고 회사 뒷길 산책" }
+        ctx.meet(88, listOf(jieun), "편안") { memo = "점심 먹고 회사 뒷길 산책" }
 
-        ctx.meet(20, listOf(minseok), "든든", "그냥") {
+        ctx.meet(110, listOf(minseok), "든든", "그냥") {
             memo = "팀장님이랑 1on1 겸 저녁\n내년 커리어 얘기"
         }
-        ctx.meet(95, listOf(minseok, dohyeon, jieun), "즐거움") {
+        ctx.meet(190, listOf(minseok, dohyeon, jieun), "즐거움") {
             title = "부서 워크숍"
             memo = "1박 2일 워크숍\n생각보다 재밌었다"
         }
 
-        ctx.meet(9, listOf(hayeong), "편안") { memo = "점심 메이트\n회사 앞 파스타" }
-        ctx.meet(26, listOf(hayeong), "편안", "고마움") { memo = "퇴근길에 카페에서 30분" }
-        ctx.meet(54, listOf(hayeong), "설렘", "즐거움", weatherLabel = "맑음") {
+        ctx.meet(30, listOf(hayeong), "편안") { memo = "점심 메이트\n회사 앞 파스타" }
+        ctx.meet(58, listOf(hayeong), "편안", "고마움") { memo = "퇴근길에 카페에서 30분" }
+        ctx.meet(95, listOf(hayeong), "설렘", "즐거움", weatherLabel = "맑음") {
             title = "전시 보고 온 날"
             memo = "주말에 성수 전시\n사진 많이 찍었다"
         }
 
-        // 한소희: 평소 주기(약 4~5개월)의 두 배를 넘겨 멀어진 관계(DISTANT)로 잡히는 사례.
-        ctx.meet(330, listOf(sohee), "반가움", "아쉬움") { memo = "이직 축하 저녁" }
-        ctx.meet(510, listOf(sohee), "서운") { memo = "퇴사 전 마지막 점심" }
-        ctx.meet(600, listOf(sohee), "즐거움") { memo = "프로젝트 끝나고 회식" }
+        // 한소희: 평소 주기(넉 달 남짓)의 두 배를 넘겨 멀어진 관계(DISTANT)로 잡히는 사례.
+        ctx.meet(430, listOf(sohee), "반가움", "아쉬움") { memo = "이직 축하 저녁" }
+        ctx.meet(610, listOf(sohee), "서운") { memo = "퇴사 전 마지막 점심" }
+        ctx.meet(700, listOf(sohee), "즐거움") { memo = "프로젝트 끝나고 회식" }
 
         // 장우진: 첫 회사 사수. '3년' 눈금에 앉는 오래된 관계.
-        ctx.meet(900, listOf(woojin), "든든", "고마움") { memo = "첫 회사 사수님\n이직 상담 받았다" }
-        ctx.meet(1100, listOf(woojin), "서운", "고마움") { memo = "퇴사 인사드리고 저녁" }
+        ctx.meet(980, listOf(woojin), "든든", "고마움") { memo = "첫 회사 사수님\n이직 상담 받았다" }
+        ctx.meet(1180, listOf(woojin), "서운", "고마움") { memo = "퇴사 인사드리고 저녁" }
 
-        ctx.meet(3, listOf(junyeong), "편안", "즐거움") { memo = "동네에서 늦게까지 수다" }
-        ctx.meet(21, listOf(junyeong), "즐거움", weatherLabel = "맑음") {
+        // 대학: 절친만 이어서 보고 나머지는 동기 모임에서 한 번에 본다.
+        ctx.meet(21, listOf(junyeong), "편안", "즐거움") { memo = "동네에서 늦게까지 수다" }
+        ctx.meet(55, listOf(junyeong), "즐거움", weatherLabel = "맑음") {
             title = "북한산"
             memo = "오랜만에 등산\n내려와서 막걸리"
         }
-        ctx.meet(49, listOf(junyeong), "설렘") { memo = "생일 겸 위스키바" }
-        ctx.meet(120, listOf(junyeong, chaewon, taeyun), "반가움") {
+        ctx.meet(96, listOf(junyeong), "설렘") { memo = "생일 겸 위스키바" }
+        ctx.meet(210, listOf(junyeong, chaewon, taeyun), "반가움") {
             title = "과 동기 모임"
             memo = "학교 앞에서 모임\n다들 늙었다고 웃었다"
         }
 
-        ctx.meet(40, listOf(chaewon), "즐거움") { memo = "영화 보고 저녁" }
-        ctx.meet(280, listOf(chaewon), "뭉클", "고마움") { memo = "결혼 소식 듣고 축하 자리" }
+        ctx.meet(130, listOf(chaewon), "즐거움") { memo = "영화 보고 저녁" }
+        ctx.meet(320, listOf(chaewon), "뭉클", "고마움") { memo = "결혼 소식 듣고 축하 자리" }
 
-        ctx.meet(70, listOf(taeyun), "고마움", "든든") { memo = "동아리 선배가 밥 사줬다" }
-        ctx.meet(250, listOf(taeyun), "그냥") { memo = "학교 근처에서 한잔" }
+        ctx.meet(165, listOf(taeyun), "고마움", "든든") { memo = "동아리 선배가 밥 사줬다" }
+        ctx.meet(400, listOf(taeyun), "그냥") { memo = "학교 근처에서 한잔" }
 
-        ctx.meet(150, listOf(subin), "든든") { memo = "취업 상담 겸 커피" }
-        ctx.meet(430, listOf(subin), "뭉클", "즐거움") { memo = "졸업 축하 자리" }
+        ctx.meet(300, listOf(subin), "든든") { memo = "취업 상담 겸 커피" }
+        ctx.meet(520, listOf(subin), "뭉클", "즐거움") { memo = "졸업 축하 자리" }
 
-        ctx.meet(16, listOf(jaehun), "편안", "즐거움") { memo = "동네에서 삼겹살\n결국 새벽까지" }
-        ctx.meet(62, listOf(jaehun, yujin), "반가움") {
+        // 고등학교: 절친만 이어지고 나머지는 모임에서만 본다.
+        ctx.meet(68, listOf(jaehun), "편안", "즐거움") { memo = "동네에서 삼겹살\n결국 새벽까지" }
+        ctx.meet(140, listOf(jaehun), "설렘") { memo = "가을에 같이 갈 여행 계획 세웠다" }
+        ctx.meet(260, listOf(jaehun, yujin), "반가움") {
             title = "고등학교 친구들"
             memo = "10년 넘게 보는 사이\n볼 때마다 그때 얘기"
         }
-        ctx.meet(150, listOf(jaehun), "설렘") { memo = "가을에 같이 갈 여행 계획 세웠다" }
 
-        ctx.meet(85, listOf(yujin), "편안") { memo = "브런치 먹고 산책" }
-        ctx.meet(300, listOf(yujin), "반가움", "그냥") { memo = "동창회에서 오랜만에" }
+        ctx.meet(320, listOf(yujin), "반가움", "그냥") { memo = "동창회에서 오랜만에" }
+        ctx.meet(560, listOf(yujin), "편안") { memo = "브런치 먹고 산책" }
 
         // 문지호: 만남이 3년 눈금에 남아 있고 주기의 두 배를 넘긴 사례.
         ctx.meet(730, listOf(jiho), "즐거움") { memo = "군대 얘기하다 새벽까지" }
         ctx.meet(1050, listOf(jiho), "반가움") { memo = "졸업하고 처음 본 날" }
 
-        ctx.meet(6, listOf(mom, dad, sister), "고마움", "편안") {
+        // 가족: 본가는 두어 달에 한 번, 엄마만 그 사이에 따로 본다.
+        ctx.meet(18, listOf(mom), "뭉클") { memo = "엄마 병원 같이 다녀옴" }
+        ctx.meet(52, listOf(mom, dad, sister), "고마움", "편안") {
             title = "본가"
             memo = "주말에 본가 다녀옴\n엄마가 반찬 싸줬다"
         }
-        ctx.meet(34, listOf(mom), "뭉클") { memo = "엄마 병원 같이 다녀옴" }
-        ctx.meet(150, listOf(dad), "든든", "고마움", weatherLabel = "쌀쌀") { memo = "아빠랑 둘이 등산" }
-        ctx.meet(90, listOf(sister), "든든") { memo = "부모님 선물 같이 고르러" }
+        ctx.meet(120, listOf(mom, dad, sister), "편안") { memo = "본가에서 하루 자고 왔다" }
+        ctx.meet(230, listOf(dad), "든든", "고마움", weatherLabel = "쌀쌀") { memo = "아빠랑 둘이 등산" }
 
-        ctx.meet(4, listOf(yujinPt), "든든") { memo = "PT 30회차\n하체 하고 계단 못 내려감" }
-        ctx.meet(11, listOf(yujinPt), "그냥") { memo = "PT" }
-        ctx.meet(18, listOf(yujinPt), "설렘") { memo = "PT 등록하고 첫 인바디" }
+        // 운동과 모임: PT만 주 단위로 잦고, 크루와 암장은 사건 단위.
+        ctx.meet(3, listOf(yujinPt), "든든") { memo = "PT 6회차\n하체 하고 계단 못 내려감" }
+        ctx.meet(10, listOf(yujinPt), "그냥") { memo = "PT" }
+        ctx.meet(17, listOf(yujinPt), "설렘") { memo = "PT 등록하고 첫 인바디" }
 
-        ctx.meet(10, listOf(jihun), "즐거움", weatherLabel = "쌀쌀") { memo = "한강 러닝 10km" }
-        ctx.meet(24, listOf(jihun, eunbi), "그냥") {
+        ctx.meet(26, listOf(jihun), "즐거움", weatherLabel = "쌀쌀") { memo = "한강 러닝 10km" }
+        ctx.meet(47, listOf(jihun), "뭉클", "즐거움") { memo = "하프 마라톤 같이 뛴 날" }
+        ctx.meet(80, listOf(jihun, eunbi), "그냥") {
             title = "크루 정기런"
             memo = "정기런\n끝나고 다 같이 국수"
         }
-        ctx.meet(38, listOf(jihun), "뭉클", "즐거움") { memo = "하프 마라톤 같이 뛴 날" }
-        ctx.meet(52, listOf(eunbi), "편안") { memo = "러닝 끝나고 국수" }
+        ctx.meet(150, listOf(eunbi), "편안") { memo = "러닝 끝나고 국수" }
 
-        ctx.meet(100, listOf(minjae), "즐거움") { memo = "클라이밍장에서 3시간" }
-        ctx.meet(210, listOf(minjae), "설렘") { memo = "암장 등록한 날" }
+        ctx.meet(200, listOf(minjae), "즐거움") { memo = "클라이밍장에서 3시간" }
+        ctx.meet(330, listOf(minjae), "설렘") { memo = "암장 등록한 날" }
 
-        ctx.meet(160, listOf(nayeon), "편안") { memo = "스터디 끝나고 저녁" }
-        ctx.meet(330, listOf(nayeon), "그냥") { memo = "스터디 첫 모임" }
+        ctx.meet(345, listOf(nayeon), "편안") { memo = "스터디 끝나고 저녁" }
+        ctx.meet(540, listOf(nayeon), "그냥") { memo = "스터디 첫 모임" }
 
-        ctx.meet(2, listOf(harin), "설렘") { memo = "두 번째로 만난 날\n동네 파스타집" }
-        ctx.meet(24, listOf(harin), "설렘", "반가움") { memo = "소개로 처음 만난 날" }
+        ctx.meet(6, listOf(harin), "설렘") { memo = "두 번째로 만난 날\n동네 파스타집" }
+        ctx.meet(30, listOf(harin), "설렘", "반가움") { memo = "소개로 처음 만난 날" }
 
         // ── 연락·기념일 ─────────────────────────────────────────────────────
         // 홍세영: 만남 기록이 없어 '그 이전' 눈금에 앉는 유일한 사례(연락만 하는 사이).
         ctx.contact(45, listOf(seyeong), "그냥") { memo = "카톡으로 안부\n올해는 꼭 보자고 했다" }
-        ctx.contact(120, listOf(sohee), "그냥") { memo = "잘 지내냐고 안부 전화" }
+        ctx.contact(200, listOf(sohee), "그냥") { memo = "잘 지내냐고 안부 전화" }
 
         // 정확히 1년 전 오늘 1건 — 회고(#43)·활동 흐름 데모의 성립 조건.
         ctx.anniversary(today.minusYears(1), listOf(jaehun), "뭉클", "고마움") {

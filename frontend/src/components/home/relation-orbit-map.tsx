@@ -11,14 +11,21 @@ import {
   orbitDepthStyle,
   orbitVerticalSquash,
 } from '@/components/home/orbit-depth'
-import { useOrbitViewport } from '@/components/home/use-orbit-viewport'
+import {
+  MIN_BASE_SCALE,
+  useOrbitViewport,
+} from '@/components/home/use-orbit-viewport'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { defaultPersonImageUrl } from '@/lib/default-person-image'
 import { formatPersonName, monogram } from '@/lib/format'
 import type { OrbitDepthMode } from '@/lib/home-orbit-depth'
 import { optimizedImageUrl } from '@/lib/image-url'
 import { hexToRgba, primaryTagColor } from '@/lib/relation-tag-colors'
-import { layoutOrbit, nearestNeighbourGaps } from '@/lib/relation-orbit-layout'
+import {
+  ORBIT_GEOMETRY,
+  layoutOrbit,
+  nearestNeighbourGaps,
+} from '@/lib/relation-orbit-layout'
 import { cn } from '@/lib/utils'
 
 // 홈의 주연 — '나' 중심 궤도. 위치가 최근성 정보라 범례가 없다.
@@ -35,7 +42,13 @@ const RING_LABEL_FADE = { near: 0.9, far: 0.35 } as const
 
 // 붐빔 기준 — '가장 가까운 이웃까지의 화면상 거리'가 이만큼은 돼야 이름을 쓴다.
 const NAME_ROOM_PX = 56
-const NODE_ROOM_PX = 50
+/**
+ * 노드를 줄이기 시작하는 이웃 거리. 상수로 박지 않고 배치가 보장하는 간격
+ * (nodeArc)을 기본 배율 하한으로 환산해 끌어온다 — 둘이 어긋나면 설계대로
+ * 배치해도 늘 '붐빈다'고 판정해 노드가 상시 작아진다(58 월드 px는 배율
+ * 0.72에서 42 화면 px이라, 기준이 50이던 동안 전원이 0.84로 깎였다).
+ */
+const NODE_ROOM_PX = ORBIT_GEOMETRY.nodeArc * MIN_BASE_SCALE
 const MIN_CROWD_SCALE = 0.58
 
 /** 아바타 지름(월드 px). size-10 과 같은 값이어야 탭 타깃 계산이 맞는다. */
