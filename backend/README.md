@@ -27,7 +27,7 @@ Swagger SSOT: [http://localhost:18081/swagger-ui/index.html](http://localhost:18
 | ---------------------------------------- | ---------------------------------------------------- | ---------------------------- | ------------------------------------------ |
 | **앱 부트** (`main.tsx`)                 | `POST /api/v1/auth/token` · `POST /api/v1/seed`      | `authenticateUser`           | ✅                                         |
 | **홈** `/`                               | `GET /api/v1/home/relation-map`                      | `fetchRelationMap`           | ✅                                         |
-|                                          | `GET /api/v1/home/relation-map?relationTagChipIds=`  | `fetchRelationMap(ids)`      | ✅ (관계태그 필터)                         |
+|                                          | `GET /api/v1/zones`                                  | `getZones`                   | ✅ (홈 우주 = 존별 인물 묶음)              |
 |                                          | `GET /api/v1/home/throwback`                         | `fetchThrowback`             | ✅ (204 → 카드 숨김)                       |
 | **사람 목록** `/people`                  | `GET /api/v1/persons?sort=&query=`                   | `fetchPersons`               | ✅                                         |
 | **인연 추가** `/people/new`              | `POST /api/v1/persons`                               | `createPerson`               | ✅                                         |
@@ -53,6 +53,11 @@ Swagger SSOT: [http://localhost:18081/swagger-ui/index.html](http://localhost:18
 |                                          | `POST /api/v1/chips`                                 | `createChip`                 | ✅ (CATEGORY·RELATION_TAG·EMOTION·WEATHER) |
 |                                          | `PATCH /api/v1/chips/{id}`                           | `renameChip`                 | ✅ (개인 칩만)                             |
 |                                          | `DELETE /api/v1/chips/{id}`                          | `deleteChip`                 | ✅ (개인 칩만)                             |
+|                                          | `GET·POST /api/v1/zones`                             | `getZones` · `createZone`    | ✅ (존 관리)                               |
+|                                          | `PATCH·DELETE /api/v1/zones/{id}`                    | `updateZone` · `deleteZone`  | ✅                                         |
+|                                          | `PUT /api/v1/zones/{id}/persons`                     | `replaceZonePersons`         | ✅ (인물 전체 교체)                        |
+| **인물관계도** `/relation-graph`         | `GET /api/v1/relation-graph`                         | `getRelationGraph`           | ✅ (영역 + 노드 좌표 + 인물↔인물 연결)     |
+|                                          | `PUT /api/v1/relation-graph`                         | `replaceRelationGraph`       | ✅ (전체 교체, 저장 버튼으로만)            |
 
 PRD ↔ 화면 대응은 [../docs/prd](../docs/prd/) 참조. 세부 스키마·에러 코드는 Swagger가 SSOT다.
 

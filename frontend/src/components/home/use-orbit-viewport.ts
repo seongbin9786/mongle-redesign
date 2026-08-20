@@ -35,6 +35,18 @@ const MAX_BASE_SCALE = 1.25
 export const PAN_THRESHOLD_PX = 6
 /** 가장자리에서 살짝 더 끌 수 있게 두는 여유. 완전히 고정되면 뻣뻣하다. */
 const PAN_SLACK_PX = 24
+/**
+ * 우주를 넘길 만큼 끌었다고 보는 가로 거리. 팬 임계값(6px)보다 한참 커야
+ * 지도를 살짝 미는 손짓이 우주 이동으로 오인되지 않는다.
+ */
+const SWIPE_COMMIT_PX = 56
+/**
+ * 가로가 세로보다 이만큼 우세해야 스와이프로 읽는다. 대각선 드래그는 팬이다 —
+ * 우주 이동은 '옆으로 넘긴다'는 분명한 동작일 때만 일어나야 한다.
+ */
+const SWIPE_AXIS_RATIO = 1.4
+/** 끄는 동안 지도가 따라오는 비율. 1:1로 따라오면 넘길 마음이 없던 손짓도 이동처럼 보인다. */
+const SWIPE_FOLLOW = 0.35
 
 type Point = { x: number; y: number }
 type View = { zoom: number; tx: number; ty: number }
@@ -42,10 +54,28 @@ type View = { zoom: number; tx: number; ty: number }
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
 
-export function useOrbitViewport(worldRadius: number, focusRadius: number) {
+/**
+ * 궤도 지도의 줌·팬 + 우주 좌우 스와이프.
+ *
+ * 스와이프를 바깥 래퍼에서 따로 받지 않고 여기서 함께 중재한다 — 같은 포인터를 두
+ * 곳에서 해석하면 지도 팬과 우주 이동이 서로를 삼킨다. 판정 기준은 하나다:
+ * **기본 보기(확대·이동하지 않은 상태)의 가로 우세 드래그만 우주 이동이다.**
+ * 확대해서 보고 있는 사람에게 가로 드래그는 언제나 '지도를 민다'는 뜻이다.
+ */
+export function useOrbitViewport(
+  worldRadius: number,
+  focusRadius: number,
+  swipe?: {
+    /** 넘길 수 있는지(양 끝에서는 false). 넘길 수 없으면 끌리지도 않는다. */
+    canSwipe: (direction: 1 | -1) => boolean
+    onSwipe: (direction: 1 | -1) => void
+  },
+) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [box, setBox] = useState({ width: 0, height: 0 })
   const [view, setView] = useState<View>({ zoom: 1, tx: 0, ty: 0 })
+  /** 스와이프로 끌려간 가로 거리(px). 손을 떼면 0으로 돌아간다. */
+  const [swipeOffset, setSwipeOffset] = useState(0)
 
   // 첫 크기는 레이아웃 직후 직접 잰다. ResizeObserver의 첫 통지만 믿으면
   // 마운트 시점에 따라 0x0으로 시작해 배율이 1에 묶인 채 남는 경우가 있다.
@@ -149,7 +179,10 @@ export function useOrbitViewport(worldRadius: number, focusRadius: number) {
   // ── 제스처 ────────────────────────────────────────────────────────────
   const pointers = useRef(new Map<number, Point>())
   const gesture = useRef<{
-    mode: 'pan' | 'pinch'
+    // 'undecided': 아직 팬인지 스와이프인지 못 정한 상태. 임계값을 넘는 첫 움직임의
+    // 방향이 이 제스처의 정체를 확정하고, 한 번 정해지면 끝까지 바뀌지 않는다
+    // (도중에 바뀌면 지도가 튀고 우주도 어중간하게 끌린다).
+    mode: 'pan' | 'pinch' | 'swipe' | 'undecided'
     start: Point
     distance: number
     view: View
@@ -180,11 +213,20 @@ export function useOrbitViewport(worldRadius: number, focusRadius: number) {
 
   const beginGesture = () => {
     const { center, distance } = readGesture()
+    const startView = latest.current.view
+    // 확대·이동한 상태에서는 스와이프 후보가 아니다 — 그 손짓은 지도를 미는 뜻이다.
+    const atRestingView =
+      startView.zoom === 1 && startView.tx === 0 && startView.ty === 0
     gesture.current = {
-      mode: pointers.current.size >= 2 ? 'pinch' : 'pan',
+      mode:
+        pointers.current.size >= 2
+          ? 'pinch'
+          : swipe && atRestingView
+            ? 'undecided'
+            : 'pan',
       start: center,
       distance,
-      view: latest.current.view,
+      view: startView,
     }
   }
 
@@ -215,6 +257,20 @@ export function useOrbitViewport(worldRadius: number, focusRadius: number) {
     const dy = center.y - active.start.y
     if (!panned.current && Math.hypot(dx, dy) < PAN_THRESHOLD_PX) return
     panned.current = true
+
+    if (active.mode === 'undecided') {
+      // 정체를 확정하는 첫 움직임. 가로가 뚜렷하게 우세할 때만 우주 이동이다.
+      active.mode =
+        Math.abs(dx) > Math.abs(dy) * SWIPE_AXIS_RATIO ? 'swipe' : 'pan'
+    }
+
+    if (active.mode === 'swipe') {
+      const direction: 1 | -1 = dx < 0 ? 1 : -1
+      // 끝 우주에서는 끌리지도 않는다 — 고무줄처럼 늘어났다 돌아오면 '넘어갔나?'를 묻게 된다.
+      setSwipeOffset(swipe?.canSwipe(direction) ? dx * SWIPE_FOLLOW : 0)
+      return
+    }
+
     setView(
       clampView({
         zoom: active.view.zoom,
@@ -225,6 +281,17 @@ export function useOrbitViewport(worldRadius: number, focusRadius: number) {
   }
 
   const endPointer = (event: React.PointerEvent) => {
+    const active = gesture.current
+    if (active?.mode === 'swipe' && pointers.current.size === 1) {
+      const dx =
+        (pointers.current.get(event.pointerId)?.x ?? active.start.x) -
+        active.start.x
+      const direction: 1 | -1 = dx < 0 ? 1 : -1
+      if (Math.abs(dx) >= SWIPE_COMMIT_PX && swipe?.canSwipe(direction)) {
+        swipe.onSwipe(direction)
+      }
+      setSwipeOffset(0)
+    }
     pointers.current.delete(event.pointerId)
     // 두 손가락 중 하나만 떼면 남은 손가락으로 팬을 이어간다.
     if (pointers.current.size === 0) gesture.current = null
@@ -252,6 +319,8 @@ export function useOrbitViewport(worldRadius: number, focusRadius: number) {
     containerRef,
     scale,
     translate: { x: view.tx, y: view.ty },
+    /** 스와이프로 끌려간 거리. 지도를 손끝에 붙여 두는 용도라 월드가 아니라 화면 px다. */
+    swipeOffset,
     /** 사용자가 확대·이동한 상태인지 — 기본 보기로 되돌릴 조건. */
     moved: view.zoom !== 1 || view.tx !== 0 || view.ty !== 0,
     /**

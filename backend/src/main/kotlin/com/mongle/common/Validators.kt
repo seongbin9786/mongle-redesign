@@ -51,6 +51,13 @@ object Validators {
         }
     }
 
+    /** 존 개수 상한. currentCount 는 만들기 전 기존 개수. */
+    fun zoneLimit(currentCount: Int, max: Int = ValidationLimits.ZONE_MAX) {
+        if (currentCount >= max) {
+            throw BusinessException(ErrorCode.ZONE_LIMIT, Messages.zoneLimitExceeded(max))
+        }
+    }
+
     /** 이미 있는 항목(같은 종류 내 중복 등). */
     fun rejectDuplicate(exists: Boolean) {
         if (exists) throw BusinessException(ErrorCode.DUPLICATE)

@@ -86,6 +86,13 @@ function Frame({ children }: { children: React.ReactNode }) {
   )
 }
 
+// 우주 = '전체' + 존별 한 장. 스토리에서도 홈과 같은 구성으로 넘겨 본다.
+const UNIVERSES = [
+  { id: 'all', name: '전체', nodes },
+  { id: 'zone:1', name: '최애존', nodes: nodes.filter((n) => n.id <= 5) },
+  { id: 'zone:2', name: '스쳐지나간존', nodes: nodes.filter((n) => n.id > 12) },
+] as const
+
 const meta = {
   title: 'Home/RelationOrbitMap',
   component: RelationOrbitMap,
@@ -94,41 +101,48 @@ const meta = {
     me,
     nodes,
     edges,
-    selectedTagId: null,
+    universeId: 'all',
+    enterDirection: 0 as const,
     depth: 'tilt' as const,
     onToggleDepth: () => {},
     onSelectPerson: () => {},
   },
   render: (args) => {
-    const [selectedTagId, setSelectedTagId] = useState<number | null>(null)
+    const [index, setIndex] = useState(0)
+    const [enterDirection, setEnterDirection] = useState<1 | -1 | 0>(0)
     const [depth, setDepth] = useState(args.depth)
+    const universe = UNIVERSES[index]
+    const move = (direction: 1 | -1) => {
+      const next = Math.min(
+        UNIVERSES.length - 1,
+        Math.max(0, index + direction),
+      )
+      if (next === index) return
+      setEnterDirection(direction)
+      setIndex(next)
+    }
     return (
       <div className="mx-auto max-w-[430px]">
-        <div className="mb-3 flex gap-2">
-          {Object.values(TAGS).map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              onClick={() =>
-                setSelectedTagId((current) =>
-                  current === tag.id ? null : tag.id,
-                )
-              }
-              className="rounded-full border border-border px-3 py-1 text-xs"
-              style={{
-                backgroundColor:
-                  selectedTagId === tag.id ? tag.color : undefined,
-                color: selectedTagId === tag.id ? '#fff' : undefined,
-              }}
-            >
-              {tag.label}
-            </button>
-          ))}
+        <div className="mb-3 flex items-center justify-center gap-3 text-xs">
+          <button type="button" onClick={() => move(-1)}>
+            ◀
+          </button>
+          <span className="font-semibold">{universe.name}</span>
+          <button type="button" onClick={() => move(1)}>
+            ▶
+          </button>
         </div>
         <Frame>
           <RelationOrbitMap
             {...args}
-            selectedTagId={selectedTagId}
+            nodes={[...universe.nodes]}
+            universeId={universe.id}
+            enterDirection={enterDirection}
+            swipe={{
+              canSwipe: (direction) =>
+                index + direction >= 0 && index + direction < UNIVERSES.length,
+              onSwipe: move,
+            }}
             depth={depth}
             onToggleDepth={() =>
               setDepth((current) => (current === 'tilt' ? 'focus' : 'tilt'))
@@ -146,15 +160,17 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 /** 기본 — 궤도판을 눕혀 바깥이 지평선으로 물러난다. 사람은 세워 둔다. */
-export const Tilt: Story = {}
+export const Tilt: Story = { args: { universeId: 'all', enterDirection: 0 } }
 
 /** 초점이 '나'에 맞고 바깥이 아웃포커스로 풀린다. 화면 위 토글로 바꾼다. */
 export const Focus: Story = {
-  args: { depth: 'focus' },
+  args: { depth: 'focus', universeId: 'all', enterDirection: 0 },
 }
 
 export const Distant: Story = {
   args: {
+    universeId: 'all',
+    enterDirection: 0,
     nodes: nodes.filter(
       (node) => node.intimacy.status === 'DISTANT' || node.id <= 3,
     ),
@@ -168,6 +184,8 @@ export const Distant: Story = {
  */
 export const Crowded: Story = {
   args: {
+    universeId: 'all',
+    enterDirection: 0,
     nodes: Array.from({ length: 40 }, (_, index) =>
       person(100 + index, `친구${index + 1}`, 1 + index * 2, 'friend'),
     ),
@@ -175,8 +193,14 @@ export const Crowded: Story = {
   },
 }
 
-export const FamilyOnlyDimmed: Story = {
-  args: { selectedTagId: TAGS.family.id },
+/** 존 우주 한 장 — 담긴 사람만 남고 나머지는 이 우주에 아예 없다(흐림이 아니다). */
+export const ZoneUniverse: Story = {
+  args: {
+    nodes: nodes.filter((node) => node.id <= 5),
+    edges: edges.filter((edge) => edge.personId <= 5),
+    universeId: 'zone:1',
+    enterDirection: 1,
+  },
   render: (args) => (
     <Frame>
       <RelationOrbitMap {...args} onSelectPerson={() => {}} />
@@ -185,7 +209,7 @@ export const FamilyOnlyDimmed: Story = {
 }
 
 export const Empty: Story = {
-  args: { nodes: [], edges: [] },
+  args: { nodes: [], edges: [], universeId: 'all', enterDirection: 0 },
   render: (args) => (
     <Frame>
       <RelationOrbitMap {...args} onSelectPerson={() => {}}>

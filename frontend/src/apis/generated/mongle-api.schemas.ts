@@ -10,6 +10,124 @@
  * OpenAPI spec version: v1
  */
 /**
+ * 존 인물 할당 요청. 지금 상태를 통째로 보내 교체한다(부분 추가·삭제 없음).
+ */
+export interface ZonePersonsRequest {
+  /** 이 존에 담을 인물 id 목록. 내 소유·active 인물만 허용하고, 중복 id 는 첫 등장만 남는다. */
+  personIds: number[]
+}
+
+/**
+ * 공통 에러 응답. code 는 ErrorCode 이름, message 는 사용자에게 그대로 노출 가능한 문구(§12.5).
+ */
+export interface ErrorResponse {
+  /** 에러 코드(ErrorCode enum 이름). */
+  code: string
+  /** 사용자 노출용 에러 문구. */
+  message: string
+}
+
+/**
+ * 존 응답. 홈에서 좌우로 넘기는 우주 한 장에 대응한다.
+ */
+export interface ZoneResponse {
+  /** 존 id. */
+  id: number
+  /** 존 이름(별칭). */
+  name: string
+  /**
+   * 존 표시 색상(hex).
+   * @nullable
+   */
+  color?: string | null
+  /** 좌우 스와이프 순서(오름차순). */
+  order: number
+  /** 이 존에 속한 인물 id 목록. 할당 순서를 보존하며 삭제된 인물은 빠진다. */
+  personIds: number[]
+}
+
+/**
+ * 인물관계도의 영역(지도 위 한 구역). 관계태그로 불러온 무리가 여기 담긴다.
+ */
+export interface GraphGroup {
+  /** 영역 식별자. 클라이언트가 정한다(관계태그로 만든 영역은 `tag:{chipId}`). */
+  key: string
+  /** 영역 이름. 관계태그 이름을 복사해 둔다(태그가 바뀌어도 지도는 그대로다). */
+  name: string
+  /**
+   * 영역 색(hex). 없으면 무채색으로 그린다.
+   * @nullable
+   */
+  color?: string | null
+  /** 영역 왼쪽 위 x 좌표(px). */
+  x: number
+  /** 영역 왼쪽 위 y 좌표(px). */
+  y: number
+  /** 영역 너비(px). */
+  width: number
+  /** 영역 높이(px). */
+  height: number
+}
+
+/**
+ * 인물관계도의 연결 한 줄. 방향이 없어 (A,B)와 (B,A)는 같은 줄이다.
+ */
+export interface GraphLink {
+  /** 연결된 인물 id 중 하나(저장 시 작은 id 로 정렬된다). */
+  fromPersonId: number
+  /** 연결된 다른 인물 id. */
+  toPersonId: number
+  /** 친밀도 0~100. 사용자가 바를 끌어 정한다(홈 궤도의 계산된 친밀도와 다른 축). */
+  intimacy: number
+  /**
+   * 어떻게 아는 사이인지 한 줄 메모. 최대 200자.
+   * @nullable
+   */
+  note?: string | null
+}
+
+/**
+ * 인물관계도에 올린 인물 한 명. 좌표는 사용자가 손으로 잡아 둔 자리 그대로다.
+ */
+export interface GraphNode {
+  /** 인물 id. */
+  personId: number
+  /** 캔버스 x 좌표(px). */
+  x: number
+  /** 캔버스 y 좌표(px). */
+  y: number
+  /**
+   * 속한 영역의 key. 어느 구역에도 안 들면 null.
+   * @nullable
+   */
+  groupKey?: string | null
+}
+
+/**
+ * 인물관계도 저장 요청. 지금 화면 상태를 통째로 보내 교체한다(부분 추가·삭제 없음).
+ */
+export interface RelationGraphRequest {
+  /** 지도 위 영역 목록. key 가 겹치면 첫 등장만 남는다. */
+  groups: GraphGroup[]
+  /** 관계도에 올린 인물과 좌표. 내 소유·active 인물만 허용하고, 중복 인물은 첫 등장만 남는다. */
+  nodes: GraphNode[]
+  /** 연결 목록. 양끝이 모두 nodes 에 있어야 하고, 같은 쌍이 여러 번 오면 첫 등장만 남는다. */
+  links: GraphLink[]
+}
+
+/**
+ * 인물관계도 응답. 사용자당 한 장이라 자원 id 가 없다.
+ */
+export interface RelationGraphResponse {
+  /** 지도 위 영역 목록. */
+  groups: GraphGroup[]
+  /** 관계도에 올린 인물과 좌표. */
+  nodes: GraphNode[]
+  /** 연결 목록. */
+  links: GraphLink[]
+}
+
+/**
  * 생일. 월·일은 함께, 연도는 생략 가능. 월·일이 모두 없으면 생일 없음으로 본다.
  * @nullable
  */
@@ -84,16 +202,6 @@ export interface PersonRequest {
   cautions: string[]
   /** 즐겨찾기 여부. */
   favorite: boolean
-}
-
-/**
- * 공통 에러 응답. code 는 ErrorCode 이름, message 는 사용자에게 그대로 노출 가능한 문구(§12.5).
- */
-export interface ErrorResponse {
-  /** 에러 코드(ErrorCode enum 이름). */
-  code: string
-  /** 사용자 노출용 에러 문구. */
-  message: string
 }
 
 /**
@@ -268,6 +376,19 @@ export interface PersonRef {
 }
 
 /**
+ * 존 생성 요청. 사용자가 이름 붙인 인물 묶음을 만든다.
+ */
+export interface ZoneCreateRequest {
+  /** 존 이름(별칭). 내 존 안에서 중복될 수 없다. */
+  name: string
+  /**
+   * 존 표시 색상(hex). 없으면 무채색으로 그린다.
+   * @nullable
+   */
+  color?: string | null
+}
+
+/**
  * 칩 종류(카테고리·감정·날씨·관계태그·소속).
  */
 export type ChipCreateRequestType =
@@ -367,6 +488,19 @@ export interface TokenResponse {
   username: string
   /** 최초 프로필 설정 완료 여부. */
   profileSetupCompleted: boolean
+}
+
+/**
+ * 존 수정 요청. 이름과 색만 바꾼다.
+ */
+export interface ZoneUpdateRequest {
+  /** 새 이름. 내 존 안에서 중복될 수 없다. */
+  name: string
+  /**
+   * 존 표시 색상(hex). null 이면 색상을 비운다.
+   * @nullable
+   */
+  color?: string | null
 }
 
 /**

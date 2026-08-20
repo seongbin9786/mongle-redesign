@@ -1,5 +1,6 @@
 package com.mongle.service
 
+import com.mongle.common.HexColor
 import com.mongle.common.Messages
 import com.mongle.common.ValidationLimits
 import com.mongle.common.Validators
@@ -113,7 +114,6 @@ class ChipService(
     companion object {
         // 시드(ChipSeeder)의 첫 카테고리 라벨과 동일해야 한다.
         const val MEETING_CATEGORY_LABEL = "만남"
-        private val HEX_COLOR_PATTERN = Regex("^#[0-9A-F]{6}$")
     }
 
     /** 카테고리는 사용자 시점 목록이 최소 1개 유지 — 현재 보이는 마지막 1개를 지우려 하면 거절. */
@@ -174,8 +174,5 @@ class ChipService(
         Validators.rejectDuplicate(commonDup || personalDup)
     }
 
-    private fun normalizeColor(rawColor: String?): String? {
-        val color = rawColor?.trim()?.uppercase()?.ifBlank { null } ?: return null
-        return color.takeIf { HEX_COLOR_PATTERN.matches(it) }
-    }
+    private fun normalizeColor(rawColor: String?): String? = HexColor.normalize(rawColor)
 }

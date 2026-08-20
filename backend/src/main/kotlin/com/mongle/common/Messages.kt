@@ -12,6 +12,7 @@ object Messages {
     const val REQUIRED_NAME = "이름을 입력해 주세요."
     const val REQUIRED_CHIP_NAME = "칩 이름을 입력해 주세요."
     const val REQUIRED_PERSON = "함께한 사람을 한 명 이상 선택해 주세요."
+    const val REQUIRED_ZONE_NAME = "존 이름을 입력해 주세요."
 
     // 날짜
     const val FUTURE_DATE = "오늘보다 미래일 수는 없어요."
@@ -25,6 +26,8 @@ object Messages {
     fun lengthExceeded(max: Int) = "최대 ${max}자까지 쓸 수 있어요."
 
     fun chipKindLimitExceeded(max: Int) = "칩은 종류별로 최대 ${max}개까지 만들 수 있어요."
+
+    fun zoneLimitExceeded(max: Int) = "존은 최대 ${max}개까지 만들 수 있어요."
 
     // 개수 초과 — 대상별 확정 문구(PRD 02 §7 · 04 §6). 대상 없는 일반 상한은 SELECTION_LIMIT 만.
     fun emotionSelectionLimit(max: Int) = "감정은 최대 ${max}개까지 고를 수 있어요."

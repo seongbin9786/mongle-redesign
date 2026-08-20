@@ -55,8 +55,12 @@ export function SettingsTab() {
           />
           <NavigationRow
             label="태그 설정"
-            withDivider={false}
             onClick={() => push('TagSettings', {})}
+          />
+          <NavigationRow
+            label="존 관리"
+            withDivider={false}
+            onClick={() => push('ZoneSettings', {})}
           />
         </ListGroup>
 

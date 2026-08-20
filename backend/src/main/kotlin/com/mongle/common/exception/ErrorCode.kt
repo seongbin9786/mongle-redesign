@@ -21,6 +21,7 @@ enum class ErrorCode(
     DATE_ORDER(HttpStatus.BAD_REQUEST, Messages.DATE_ORDER),
     SELECTION_LIMIT(HttpStatus.BAD_REQUEST, Messages.SELECTION_LIMIT),
     CHIP_LIMIT(HttpStatus.BAD_REQUEST, "칩 개수 상한을 넘었어요."),
+    ZONE_LIMIT(HttpStatus.BAD_REQUEST, "존 개수 상한을 넘었어요."),
     CATEGORY_REQUIRED(HttpStatus.BAD_REQUEST, Messages.CATEGORY_REQUIRED),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "로그인이 필요해요."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "리소스를 찾을 수 없습니다."),
