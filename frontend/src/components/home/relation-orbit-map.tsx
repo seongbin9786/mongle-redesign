@@ -73,7 +73,9 @@ export function RelationOrbitMap({
   me,
   nodes,
   edges,
-  selectedTagId,
+  universeId,
+  enterDirection,
+  swipe,
   depth,
   onToggleDepth,
   onSelectPerson,
@@ -82,8 +84,15 @@ export function RelationOrbitMap({
   me: MeNode
   nodes: PersonNode[]
   edges: RelationEdge[]
-  /** 선택된 관계태그 칩 id. 고르면 안 맞는 노드를 숨기지 않고 흐린다. */
-  selectedTagId: number | null
+  /** 지금 보고 있는 우주. 값이 바뀌면 궤도를 새로 그리며 도착 애니메이션이 돈다. */
+  universeId: string
+  /** 새 우주가 들어오는 방향(1=오른쪽에서 왼쪽으로 넘김, -1=반대, 0=첫 렌더). */
+  enterDirection: 1 | -1 | 0
+  /** 좌우 스와이프로 우주를 넘기는 중재자. 없으면 스와이프가 꺼진다(우주가 하나뿐일 때). */
+  swipe?: {
+    canSwipe: (direction: 1 | -1) => boolean
+    onSwipe: (direction: 1 | -1) => void
+  }
   depth: OrbitDepthMode
   onToggleDepth: () => void
   onSelectPerson: (personId: number) => void
@@ -117,7 +126,11 @@ export function RelationOrbitMap({
   )
   const meImageSrc = optimizedImageUrl(me.profileImageUrl, 128)
 
-  const viewport = useOrbitViewport(layout.worldRadius, layout.focusRadius)
+  const viewport = useOrbitViewport(
+    layout.worldRadius,
+    layout.focusRadius,
+    swipe,
+  )
   const { worldRadius, radii, rings, focusRadius } = layout
   const worldSize = worldRadius * 2
   /** 월드 좌표(중심 0,0) → 변환 레이어 안의 % 위치. */
@@ -136,256 +149,287 @@ export function RelationOrbitMap({
       className="relative h-full w-full touch-none overflow-hidden select-none"
       {...viewport.handlers}
     >
-      {/* 팬·줌 레이어와 기울임 레이어를 나눈다 — 한 요소에 두면 기울임에 건
+      {/* 우주 레이어 두 겹: 바깥은 손끝을 따라오는 끌림, 안쪽은 도착 애니메이션.
+          한 요소에 두면 끌리는 도중 우주가 바뀔 때 두 transform이 서로를 덮어쓴다.
+          안쪽은 key로 다시 마운트돼 눈금 등장(orbit-ring-in)까지 함께 돌아,
+          '다른 우주가 새로 그려진다'로 읽힌다. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          transform: `translateX(${viewport.swipeOffset}px)`,
+          // 끄는 동안은 손끝에 붙어 있어야 하므로 transition을 걸지 않는다.
+          transition:
+            viewport.swipeOffset === 0 ? 'transform 220ms ease-out' : undefined,
+        }}
+      >
+        <div
+          key={universeId}
+          className={cn(
+            'absolute inset-0',
+            enterDirection !== 0 && 'orbit-universe',
+          )}
+          style={
+            enterDirection !== 0
+              ? ({
+                  '--universe-from': `${enterDirection * 64}px`,
+                } as React.CSSProperties)
+              : undefined
+          }
+        >
+          {/* 팬·줌 레이어와 기울임 레이어를 나눈다 — 한 요소에 두면 기울임에 건
           transition이 드래그·핀치까지 늘어지게 만든다.
           3D는 여기서 시작하고 여기서 끝난다: perspective를 이 레이어에 걸고 자신은
           평면(flat)으로 둬서, 기울인 판과 그 위에 선 사람이 하나의 3D 장면으로
           투영된 뒤 2D로 합쳐진다. 팬·줌 레이어까지 preserve-3d로 열어 두면
           기울임 각도에서 노드 절반이 히트 테스트에서 아예 빠져(그려지기는 한다)
           탭해도 관계 카드가 열리지 않는다. */}
-      <div
-        className="absolute top-1/2 left-1/2 will-change-transform"
-        style={{
-          width: worldSize,
-          height: worldSize,
-          transform: `translate(-50%, -50%) translate(${viewport.translate.x}px, ${viewport.translate.y}px) scale(${viewport.scale})`,
-          perspective: '1100px',
-        }}
-      >
-        <div
-          className="orbit-tilt absolute inset-0"
-          style={{
-            transform: `rotateX(${tiltDeg}deg)`,
-            transformStyle: 'preserve-3d',
-          }}
-        >
-          <svg
-            viewBox={`${-worldRadius} ${-worldRadius} ${worldSize} ${worldSize}`}
-            className="absolute inset-0 h-full w-full"
-            aria-hidden
+          <div
+            className="absolute top-1/2 left-1/2 will-change-transform"
+            style={{
+              width: worldSize,
+              height: worldSize,
+              transform: `translate(-50%, -50%) translate(${viewport.translate.x}px, ${viewport.translate.y}px) scale(${viewport.scale})`,
+              perspective: '1100px',
+            }}
           >
-            {/* 인원이 0명인 눈금도 지우지 않는다 — 궤도는 시간의 눈금이라 늘 있어야 한다. */}
-            {radii.map((radius, index) => (
-              <circle
-                key={rings[index].label}
-                cx={0}
-                cy={0}
-                r={radius}
-                fill="none"
-                // 선 굵기도 배율을 되돌린다 — 축소되면 1px 미만이 되어 사라진다.
-                strokeWidth={screenPx(1)}
-                strokeOpacity={ringFade(RING_LINE_FADE, index, radii.length)}
-                className="orbit-ring stroke-muted-soft"
-                style={{ animationDelay: `${index * 45}ms` }}
-              />
-            ))}
-          </svg>
-
-          {/* 눈금 라벨은 12시 방향. 노드가 지나가도 읽히도록 배경을 깐다. */}
-          {rings.map((ring, index) => (
-            <span
-              key={ring.label}
-              className="orbit-tilt absolute z-30 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background/85 font-medium tracking-[0.02em] text-muted-soft"
+            <div
+              className="orbit-tilt absolute inset-0"
               style={{
-                left: '50%',
-                // 눈금 선 바로 바깥에 걸쳐 둔다 — 선 위에 얹으면 노드와 자리를 다툰다.
-                top: `${percent(-radii[index] - screenPx(9))}%`,
-                opacity: ringFade(RING_LABEL_FADE, index, radii.length),
-                fontSize: screenPx(10),
-                lineHeight: 1.3,
-                padding: `0 ${screenPx(5)}px`,
-                // 가운데 정렬은 Tailwind 클래스가 `translate` 속성으로 이미 걸었다.
-                // 여기서 또 쓰면 두 번 적용돼 반칸씩 밀린다(Tailwind v4).
-                transform: upright,
+                transform: `rotateX(${tiltDeg}deg)`,
+                transformStyle: 'preserve-3d',
               }}
             >
-              {ring.label}
-            </span>
-          ))}
-
-          {/* '나' 노드 — 표면 원 하나를 받치고, 사진이 없으면 먹색 원 + '나'. */}
-          <div
-            className="orbit-tilt absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-            style={{ transform: upright }}
-            aria-label={me.name}
-          >
-            <div className="grid size-16 place-items-center rounded-full bg-secondary ring-1 ring-border">
-              {meImageSrc ? (
-                <Avatar className="size-[46px]">
-                  <AvatarImage src={meImageSrc} alt={`${me.name} 프로필`} />
-                  <AvatarFallback>{monogram(me.name)}</AvatarFallback>
-                </Avatar>
-              ) : (
-                <div className="grid size-[42px] place-items-center rounded-full bg-foreground text-[13px] font-semibold text-background">
-                  나
-                </div>
-              )}
-            </div>
-          </div>
-
-          {nodes.map((node, index) => {
-            const placed = layoutByPersonId.get(node.id)
-            if (!placed) return null
-            const distant = distantPersonIds.has(node.id)
-            const dimmed =
-              selectedTagId != null &&
-              !node.relationTags.some((tag) => tag.id === selectedTagId)
-            const displayName = formatPersonName(node)
-            // 그룹 컬러링 — 태그 색이 곧 범례라 노드 테두리를 첫 관계태그 색으로
-            // 칠한다. 즐겨찾기는 PRD 계약인 잉크 테두리 + 별이 우선.
-            const groupColor = node.favorite
-              ? null
-              : primaryTagColor(node.relationTags)
-            const cue = orbitDepthStyle(depth, placed.radius / focusRadius)
-            // 이웃이 가까울수록 물러선다. 사람이 많을 때 얼굴이 서로 파고들고
-            // 이름이 얼룩이 되는 게 화면을 시끄럽게 만드는 진짜 원인이다.
-            const room =
-              (neighbourGaps.get(node.id) ?? Number.POSITIVE_INFINITY) *
-              viewport.scale
-            const crowdScale = Math.min(
-              1,
-              Math.max(MIN_CROWD_SCALE, room / NODE_ROOM_PX),
-            )
-            // 흐림(멀어진 관계 · 필터 미매칭)은 버튼이 아니라 거리감 레이어에 건다.
-            // opacity < 1도 filter처럼 3D를 평면화해서, 버튼에 걸면 자식의 세우기
-            // 회전이 '세우기'가 아니라 세로 찌그러짐으로 렌더된다.
-            const dimFactor = dimmed
-              ? distant
-                ? 0.1
-                : 0.16
-              : distant
-                ? 0.4
-                : 1
-            const avatarScreenPx =
-              NODE_AVATAR_PX * cue.scale * crowdScale * viewport.scale
-            const tapScreenPx = Math.max(
-              avatarScreenPx,
-              Math.min(MIN_TAP_PX, room),
-            )
-            // 여백은 월드 좌표라 배율을 되돌려 넣는다(p-1 = 4가 원래 값).
-            const hitPadding = Math.max(
-              4,
-              (tapScreenPx - avatarScreenPx) / 2 / viewport.scale,
-            )
-
-            return (
-              <button
-                key={node.id}
-                type="button"
-                {...personNodeProps}
-                onClick={() => {
-                  // 지도를 끌고 온 손가락이 노드 위에서 멈춰도 시트가 열리면 안 된다.
-                  if (viewport.pannedRef.current) return
-                  onSelectPerson(node.id)
-                }}
-                className={cn(
-                  'absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  // 눕힌 판에서 사람을 세우려면 역회전이 '진짜 3D 회전'으로
-                  // 남아야 한다. 버튼이 3D를 평면으로 눌러버리면 역회전은
-                  // 세우기가 아니라 세로 찌그러짐으로 렌더된다. 그래서 이 버튼에는
-                  // 평면화를 부르는 속성(opacity < 1, filter 등)을 걸지 않는다.
-                  '[transform-style:preserve-3d]',
-                )}
-                style={{
-                  left: `${percent(placed.x)}%`,
-                  top: `${percent(placed.y)}%`,
-                  padding: hitPadding,
-                }}
-                aria-label={`${displayName} 상세`}
+              <svg
+                viewBox={`${-worldRadius} ${-worldRadius} ${worldSize} ${worldSize}`}
+                className="absolute inset-0 h-full w-full"
+                aria-hidden
               >
-                {/* 세우기 · 거리감 · 부유를 각각 다른 레이어에 둔다. 셋 다
+                {/* 인원이 0명인 눈금도 지우지 않는다 — 궤도는 시간의 눈금이라 늘 있어야 한다. */}
+                {radii.map((radius, index) => (
+                  <circle
+                    key={rings[index].label}
+                    cx={0}
+                    cy={0}
+                    r={radius}
+                    fill="none"
+                    // 선 굵기도 배율을 되돌린다 — 축소되면 1px 미만이 되어 사라진다.
+                    strokeWidth={screenPx(1)}
+                    strokeOpacity={ringFade(
+                      RING_LINE_FADE,
+                      index,
+                      radii.length,
+                    )}
+                    className="orbit-ring stroke-muted-soft"
+                    style={{ animationDelay: `${index * 45}ms` }}
+                  />
+                ))}
+              </svg>
+
+              {/* 눈금 라벨은 12시 방향. 노드가 지나가도 읽히도록 배경을 깐다. */}
+              {rings.map((ring, index) => (
+                <span
+                  key={ring.label}
+                  className="orbit-tilt absolute z-30 -translate-x-1/2 -translate-y-1/2 rounded-full bg-background/85 font-medium tracking-[0.02em] text-muted-soft"
+                  style={{
+                    left: '50%',
+                    // 눈금 선 바로 바깥에 걸쳐 둔다 — 선 위에 얹으면 노드와 자리를 다툰다.
+                    top: `${percent(-radii[index] - screenPx(9))}%`,
+                    opacity: ringFade(RING_LABEL_FADE, index, radii.length),
+                    fontSize: screenPx(10),
+                    lineHeight: 1.3,
+                    padding: `0 ${screenPx(5)}px`,
+                    // 가운데 정렬은 Tailwind 클래스가 `translate` 속성으로 이미 걸었다.
+                    // 여기서 또 쓰면 두 번 적용돼 반칸씩 밀린다(Tailwind v4).
+                    transform: upright,
+                  }}
+                >
+                  {ring.label}
+                </span>
+              ))}
+
+              {/* '나' 노드 — 표면 원 하나를 받치고, 사진이 없으면 먹색 원 + '나'. */}
+              <div
+                className="orbit-tilt absolute top-1/2 left-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+                style={{ transform: upright }}
+                aria-label={me.name}
+              >
+                <div className="grid size-16 place-items-center rounded-full bg-secondary ring-1 ring-border">
+                  {meImageSrc ? (
+                    <Avatar className="size-[46px]">
+                      <AvatarImage src={meImageSrc} alt={`${me.name} 프로필`} />
+                      <AvatarFallback>{monogram(me.name)}</AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <div className="grid size-[42px] place-items-center rounded-full bg-foreground text-[13px] font-semibold text-background">
+                      나
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {nodes.map((node, index) => {
+                const placed = layoutByPersonId.get(node.id)
+                if (!placed) return null
+                const distant = distantPersonIds.has(node.id)
+                const displayName = formatPersonName(node)
+                // 그룹 컬러링 — 태그 색이 곧 범례라 노드 테두리를 첫 관계태그 색으로
+                // 칠한다. 즐겨찾기는 PRD 계약인 잉크 테두리 + 별이 우선.
+                const groupColor = node.favorite
+                  ? null
+                  : primaryTagColor(node.relationTags)
+                const cue = orbitDepthStyle(depth, placed.radius / focusRadius)
+                // 이웃이 가까울수록 물러선다. 사람이 많을 때 얼굴이 서로 파고들고
+                // 이름이 얼룩이 되는 게 화면을 시끄럽게 만드는 진짜 원인이다.
+                const room =
+                  (neighbourGaps.get(node.id) ?? Number.POSITIVE_INFINITY) *
+                  viewport.scale
+                const crowdScale = Math.min(
+                  1,
+                  Math.max(MIN_CROWD_SCALE, room / NODE_ROOM_PX),
+                )
+                // 흐림(멀어진 관계)은 버튼이 아니라 거리감 레이어에 건다.
+                // opacity < 1도 filter처럼 3D를 평면화해서, 버튼에 걸면 자식의 세우기
+                // 회전이 '세우기'가 아니라 세로 찌그러짐으로 렌더된다.
+                const dimFactor = distant ? 0.4 : 1
+                const avatarScreenPx =
+                  NODE_AVATAR_PX * cue.scale * crowdScale * viewport.scale
+                const tapScreenPx = Math.max(
+                  avatarScreenPx,
+                  Math.min(MIN_TAP_PX, room),
+                )
+                // 여백은 월드 좌표라 배율을 되돌려 넣는다(p-1 = 4가 원래 값).
+                const hitPadding = Math.max(
+                  4,
+                  (tapScreenPx - avatarScreenPx) / 2 / viewport.scale,
+                )
+
+                return (
+                  <button
+                    key={node.id}
+                    type="button"
+                    {...personNodeProps}
+                    onClick={() => {
+                      // 지도를 끌고 온 손가락이 노드 위에서 멈춰도 시트가 열리면 안 된다.
+                      if (viewport.pannedRef.current) return
+                      onSelectPerson(node.id)
+                    }}
+                    className={cn(
+                      'absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      // 눕힌 판에서 사람을 세우려면 역회전이 '진짜 3D 회전'으로
+                      // 남아야 한다. 버튼이 3D를 평면으로 눌러버리면 역회전은
+                      // 세우기가 아니라 세로 찌그러짐으로 렌더된다. 그래서 이 버튼에는
+                      // 평면화를 부르는 속성(opacity < 1, filter 등)을 걸지 않는다.
+                      '[transform-style:preserve-3d]',
+                    )}
+                    style={{
+                      left: `${percent(placed.x)}%`,
+                      top: `${percent(placed.y)}%`,
+                      padding: hitPadding,
+                    }}
+                    aria-label={`${displayName} 상세`}
+                  >
+                    {/* 세우기 · 거리감 · 부유를 각각 다른 레이어에 둔다. 셋 다
                   transform을 쓰고 filter는 3D를 평면화해서, 한 요소에 겹치면
                   서로를 죽인다. */}
-                <span
-                  className="orbit-tilt block [transform-style:preserve-3d]"
-                  style={{ transform: upright }}
-                >
-                  <span
-                    className="block transition-[opacity,filter] duration-300"
-                    style={{
-                      opacity: cue.opacity * dimFactor,
-                      filter: cue.filter,
-                      transform: `scale(${(cue.scale * crowdScale).toFixed(3)})`,
-                    }}
-                  >
                     <span
-                      className="orbit-bob flex flex-col items-center"
-                      style={{
-                        animationDuration: `${5.6 + (index % 5) * 0.8}s`,
-                        animationDelay: `${-(index * 1.1) % 6}s`,
-                      }}
+                      className="orbit-tilt block [transform-style:preserve-3d]"
+                      style={{ transform: upright }}
                     >
-                      <span className="relative">
-                        <Avatar
-                          className={cn(
-                            'size-10 border-2 bg-card shadow-e1 transition-transform duration-150 active:scale-90',
-                            node.favorite && 'border-foreground',
-                            !node.favorite && !groupColor && 'border-border',
-                          )}
-                          style={
-                            groupColor ? { borderColor: groupColor } : undefined
-                          }
-                        >
-                          <AvatarImage
-                            src={
-                              optimizedImageUrl(node.profileImageUrl, 128) ??
-                              defaultPersonImageUrl({
-                                id: node.id,
-                                name: node.name,
-                                gender: node.avatarGender ?? null,
-                              })
-                            }
-                            alt={displayName}
-                          />
-                          <AvatarFallback
-                            style={
-                              groupColor
-                                ? {
-                                    backgroundColor: hexToRgba(
-                                      groupColor,
-                                      0.13,
-                                    ),
-                                    color: groupColor,
-                                  }
-                                : undefined
-                            }
-                          >
-                            {monogram(node.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {node.favorite ? (
-                          <span className="absolute -top-1.5 -right-1 text-[10px] leading-none text-amber-500">
-                            ★
-                          </span>
-                        ) : null}
-                      </span>
-                      {/* 이름이 서로 닿을 만큼 붐비면 얼굴만 남긴다. 겹친 이름은
-                        정보가 아니라 얼룩이다. 확대하면 자리가 생겨 다시 나온다. */}
-                      {room >= NAME_ROOM_PX ? (
+                      <span
+                        className="block transition-[opacity,filter] duration-300"
+                        style={{
+                          opacity: cue.opacity * dimFactor,
+                          filter: cue.filter,
+                          transform: `scale(${(cue.scale * crowdScale).toFixed(3)})`,
+                        }}
+                      >
                         <span
-                          data-amp-mask
-                          className={cn(
-                            'truncate font-medium',
-                            distant
-                              ? 'text-muted-foreground'
-                              : 'text-foreground',
-                          )}
+                          className="orbit-bob flex flex-col items-center"
                           style={{
-                            marginTop: screenPx(3),
-                            maxWidth: screenPx(76),
-                            fontSize: screenPx(10),
-                            lineHeight: 1,
+                            animationDuration: `${5.6 + (index % 5) * 0.8}s`,
+                            animationDelay: `${-(index * 1.1) % 6}s`,
                           }}
                         >
-                          {displayName}
+                          <span className="relative">
+                            <Avatar
+                              className={cn(
+                                'size-10 border-2 bg-card shadow-e1 transition-transform duration-150 active:scale-90',
+                                node.favorite && 'border-foreground',
+                                !node.favorite &&
+                                  !groupColor &&
+                                  'border-border',
+                              )}
+                              style={
+                                groupColor
+                                  ? { borderColor: groupColor }
+                                  : undefined
+                              }
+                            >
+                              <AvatarImage
+                                src={
+                                  optimizedImageUrl(
+                                    node.profileImageUrl,
+                                    128,
+                                  ) ??
+                                  defaultPersonImageUrl({
+                                    id: node.id,
+                                    name: node.name,
+                                    gender: node.avatarGender ?? null,
+                                  })
+                                }
+                                alt={displayName}
+                              />
+                              <AvatarFallback
+                                style={
+                                  groupColor
+                                    ? {
+                                        backgroundColor: hexToRgba(
+                                          groupColor,
+                                          0.13,
+                                        ),
+                                        color: groupColor,
+                                      }
+                                    : undefined
+                                }
+                              >
+                                {monogram(node.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            {node.favorite ? (
+                              <span className="absolute -top-1.5 -right-1 text-[10px] leading-none text-amber-500">
+                                ★
+                              </span>
+                            ) : null}
+                          </span>
+                          {/* 이름이 서로 닿을 만큼 붐비면 얼굴만 남긴다. 겹친 이름은
+                        정보가 아니라 얼룩이다. 확대하면 자리가 생겨 다시 나온다. */}
+                          {room >= NAME_ROOM_PX ? (
+                            <span
+                              data-amp-mask
+                              className={cn(
+                                'truncate font-medium',
+                                distant
+                                  ? 'text-muted-foreground'
+                                  : 'text-foreground',
+                              )}
+                              style={{
+                                marginTop: screenPx(3),
+                                maxWidth: screenPx(76),
+                                fontSize: screenPx(10),
+                                lineHeight: 1,
+                              }}
+                            >
+                              {displayName}
+                            </span>
+                          ) : null}
                         </span>
-                      ) : null}
+                      </span>
                     </span>
-                  </span>
-                </span>
-              </button>
-            )
-          })}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
 

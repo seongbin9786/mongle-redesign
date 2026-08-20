@@ -8,6 +8,8 @@ import com.mongle.domain.EventPerson
 import com.mongle.domain.Person
 import com.mongle.domain.PersonGender
 import com.mongle.domain.PersonRelationTag
+import com.mongle.domain.Zone
+import com.mongle.domain.ZonePerson
 import com.mongle.repository.ChipRepository
 import com.mongle.repository.EventEmotionRepository
 import com.mongle.repository.EventPersonRepository
@@ -15,6 +17,8 @@ import com.mongle.repository.EventRepository
 import com.mongle.repository.PersonRelationTagRepository
 import com.mongle.repository.PersonRepository
 import com.mongle.repository.UserRepository
+import com.mongle.repository.ZonePersonRepository
+import com.mongle.repository.ZoneRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
@@ -49,6 +53,8 @@ class DemoDataSeeder(
     private val personRelationTagRepository: PersonRelationTagRepository,
     private val eventPersonRepository: EventPersonRepository,
     private val eventEmotionRepository: EventEmotionRepository,
+    private val zoneRepository: ZoneRepository,
+    private val zonePersonRepository: ZonePersonRepository,
 ) {
     @Transactional
     fun seed(ownerId: UUID) {
@@ -394,7 +400,22 @@ class DemoDataSeeder(
             memo = "매년 챙기는 생일\n올해도 케이크 들고 갔다"
         }
 
+        // ── 존(우주) ────────────────────────────────────────────────────────
+        // 홈의 좌우 스와이프는 존이 하나도 없으면 '전체' 한 장뿐이라 은유 자체가 안 보인다.
+        // 존이 관계태그와 다른 축(마음의 거리)임이 한눈에 읽히게, 소속·태그 경계를 일부러 가로지른다.
+        seedZone(ownerId, "최애존", "#E06A2B", 0, listOf(mom, jaehun, junyeong, seojun, dad))
+        seedZone(ownerId, "말잇못존", "#8B5CF6", 1, listOf(minseok, hayeong, yujin, jiho))
+        seedZone(ownerId, "스쳐지나간존", "#94A3B8", 2, listOf(sohee, woojin, seyeong, subin, taeyun))
+
         user.markDemoSeeded()
+    }
+
+    /** 데모 존 1개 + 인물 할당. 존은 공통 시드가 없으므로(mustpass 06-zone) 사용자 소유로 만든다. */
+    private fun seedZone(ownerId: UUID, name: String, color: String, order: Int, personIds: List<Long>) {
+        val zone = zoneRepository.save(Zone(ownerId = ownerId, name = name, color = color, displayOrder = order))
+        personIds.forEachIndexed { index, personId ->
+            zonePersonRepository.save(ZonePerson(zoneId = requireNotNull(zone.id), personId = personId, displayOrder = index))
+        }
     }
 
     /**

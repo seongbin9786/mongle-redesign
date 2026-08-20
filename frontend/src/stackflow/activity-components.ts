@@ -7,6 +7,9 @@ import { EventDetailActivity } from '@/stackflow/activities/event-detail-activit
 import { RecordActivity } from '@/stackflow/activities/record-activity'
 import { HomeSettingsActivity } from '@/stackflow/activities/settings/home-settings-activity'
 import { TagSettingsActivity } from '@/stackflow/activities/settings/tag-settings-activity'
+import { ZoneSettingsActivity } from '@/stackflow/activities/settings/zone-settings-activity'
+import { ZonePersonsActivity } from '@/stackflow/activities/settings/zone-persons-activity'
+import { RelationGraphActivity } from '@/stackflow/activities/relation-graph-activity'
 import { NotFoundActivity } from '@/stackflow/activities/not-found-activity'
 import { OnboardingNameActivity } from '@/stackflow/onboarding/onboarding-name-activity'
 import { OnboardingProfileActivity } from '@/stackflow/onboarding/onboarding-profile-activity'
@@ -24,6 +27,9 @@ export const activityComponents = {
   Record: RecordActivity,
   HomeSettings: HomeSettingsActivity,
   TagSettings: TagSettingsActivity,
+  ZoneSettings: ZoneSettingsActivity,
+  ZonePersons: ZonePersonsActivity,
+  RelationGraph: RelationGraphActivity,
   NotFound: NotFoundActivity,
   OnboardingName: OnboardingNameActivity,
   OnboardingProfile: OnboardingProfileActivity,

@@ -1,4 +1,6 @@
 export * as chipMutation from './chips'
 export * as eventMutation from './events'
 export * as personMutation from './persons'
+export * as relationGraphMutation from './relation-graph'
 export * as userMutation from './users'
+export * as zoneMutation from './zones'

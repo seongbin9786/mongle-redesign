@@ -24,6 +24,8 @@ import type {
   PersonDetailResponse,
   PersonRequest,
   PersonResponse,
+  RelationGraphRequest,
+  RelationGraphResponse,
   RelationMapResponse,
   ThrowbackResponse,
   TimelineResponse,
@@ -31,10 +33,56 @@ import type {
   TokenResponse,
   UserProfileRequest,
   UserProfileResponse,
+  ZoneCreateRequest,
+  ZonePersonsRequest,
+  ZoneResponse,
+  ZoneUpdateRequest,
 } from './mongle-api.schemas'
 
 import { kyAxiosAdapter } from '../http'
 import type { BodyType } from '../http'
+
+/**
+ * 이 존에 담을 인물을 통째로 교체한다. 내 소유·활성 인물만 담을 수 있고, 중복 id 는 첫 등장만 남는다. 빈 목록을 보내면 존이 비워진다.
+ * @summary 존 인물 할당(전체 교체)
+ */
+export const replaceZonePersons = (
+  id: number,
+  zonePersonsRequest: BodyType<ZonePersonsRequest>,
+) => {
+  return kyAxiosAdapter<ZoneResponse>({
+    url: `/api/v1/zones/${id}/persons`,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    data: zonePersonsRequest,
+  })
+}
+
+/**
+ * 내 관계도를 통째로 반환한다. 아직 그린 적이 없으면 빈 목록이고, 삭제된 인물과 그 인물에 걸린 연결은 빠진다.
+ * @summary 인물관계도 조회
+ */
+export const getRelationGraph = () => {
+  return kyAxiosAdapter<RelationGraphResponse>({
+    url: `/api/v1/relation-graph`,
+    method: 'GET',
+  })
+}
+
+/**
+ * 지금 화면 상태(영역·인물·연결)를 통째로 보내 교체한다. 연결은 방향이 없어 작은 인물 id 로 정렬해 저장하고, 같은 쌍이 여러 번 오면 첫 등장만 남는다. 양끝이 nodes 에 없는 연결과 자기 자신과의 연결은 버린다. 없는 영역을 가리키는 인물은 영역만 떼고 지도에는 남긴다.
+ * @summary 인물관계도 저장(전체 교체)
+ */
+export const replaceRelationGraph = (
+  relationGraphRequest: BodyType<RelationGraphRequest>,
+) => {
+  return kyAxiosAdapter<RelationGraphResponse>({
+    url: `/api/v1/relation-graph`,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    data: relationGraphRequest,
+  })
+}
 
 /**
  * 기본 정보에 파생 스탯(만남 횟수·기록 수·알고 지낸 기간·마지막 만남)을 더해 반환한다. 마지막 만난 날은 수기 입력과 기록의 max 를 재계산한 값이다.
@@ -98,6 +146,27 @@ export const updateEvent = (
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     data: eventRequest,
+  })
+}
+
+/**
+ * 내 존을 표시 순서대로 반환한다. 각 존은 소속 인물 id 목록을 함께 담아, 프론트가 관계 지도 노드를 우주별로 나눌 수 있게 한다.
+ * @summary 존 목록 조회
+ */
+export const getZones = () => {
+  return kyAxiosAdapter<ZoneResponse[]>({ url: `/api/v1/zones`, method: 'GET' })
+}
+
+/**
+ * 이름(별칭)과 색으로 존을 만든다. 이름은 내 존 안에서 중복될 수 없고 개수 상한이 있다. 갓 만든 존은 비어 있다.
+ * @summary 존 생성
+ */
+export const createZone = (zoneCreateRequest: BodyType<ZoneCreateRequest>) => {
+  return kyAxiosAdapter<ZoneResponse>({
+    url: `/api/v1/zones`,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    data: zoneCreateRequest,
   })
 }
 
@@ -192,6 +261,30 @@ export const issueToken = (tokenRequest: BodyType<TokenRequest>) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     data: tokenRequest,
+  })
+}
+
+/**
+ * 존과 인물 할당을 지운다. 인물 자체는 지워지지 않는다.
+ * @summary 존 삭제
+ */
+export const deleteZone = (id: number) => {
+  return kyAxiosAdapter<void>({ url: `/api/v1/zones/${id}`, method: 'DELETE' })
+}
+
+/**
+ * 존의 이름과 색을 바꾼다. 인물 할당은 바뀌지 않는다.
+ * @summary 존 이름·색 변경
+ */
+export const updateZone = (
+  id: number,
+  zoneUpdateRequest: BodyType<ZoneUpdateRequest>,
+) => {
+  return kyAxiosAdapter<ZoneResponse>({
+    url: `/api/v1/zones/${id}`,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    data: zoneUpdateRequest,
   })
 }
 
@@ -314,6 +407,15 @@ export const deleteCurrentUser = () => {
   return kyAxiosAdapter<void>({ url: `/api/v1/users/me`, method: 'DELETE' })
 }
 
+export type ReplaceZonePersonsResult = NonNullable<
+  Awaited<ReturnType<typeof replaceZonePersons>>
+>
+export type GetRelationGraphResult = NonNullable<
+  Awaited<ReturnType<typeof getRelationGraph>>
+>
+export type ReplaceRelationGraphResult = NonNullable<
+  Awaited<ReturnType<typeof replaceRelationGraph>>
+>
 export type GetPersonResult = NonNullable<Awaited<ReturnType<typeof getPerson>>>
 export type UpdatePersonResult = NonNullable<
   Awaited<ReturnType<typeof updatePerson>>
@@ -324,6 +426,10 @@ export type DeletePersonResult = NonNullable<
 export type GetEventResult = NonNullable<Awaited<ReturnType<typeof getEvent>>>
 export type UpdateEventResult = NonNullable<
   Awaited<ReturnType<typeof updateEvent>>
+>
+export type GetZonesResult = NonNullable<Awaited<ReturnType<typeof getZones>>>
+export type CreateZoneResult = NonNullable<
+  Awaited<ReturnType<typeof createZone>>
 >
 export type SeedResult = NonNullable<Awaited<ReturnType<typeof seed>>>
 export type GetPersonsResult = NonNullable<
@@ -344,6 +450,12 @@ export type CreateChipResult = NonNullable<
 >
 export type IssueTokenResult = NonNullable<
   Awaited<ReturnType<typeof issueToken>>
+>
+export type DeleteZoneResult = NonNullable<
+  Awaited<ReturnType<typeof deleteZone>>
+>
+export type UpdateZoneResult = NonNullable<
+  Awaited<ReturnType<typeof updateZone>>
 >
 export type CompleteProfileSetupResult = NonNullable<
   Awaited<ReturnType<typeof completeProfileSetup>>

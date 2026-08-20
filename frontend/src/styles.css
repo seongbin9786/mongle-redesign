@@ -164,6 +164,24 @@ html[data-browser-nav-transition-skip] * {
   animation: orbit-bob 6.5s ease-in-out infinite alternate;
 }
 
+/* 우주 도착 — 다른 우주로 넘어가면 궤도가 그 방향에서 들어오며 새로 그려진다.
+   나가는 우주를 함께 그리지 않는 건, 두 궤도가 겹쳐 보이는 순간 '어느 쪽이 내
+   우주인가'가 흐려지기 때문이다(눈금이 두 겹으로 보인다). */
+@keyframes orbit-universe-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--universe-from, 0px)) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.orbit-universe {
+  animation: orbit-universe-in 420ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
 /* 기울임 ↔ 초점 전환. 팬·줌 레이어와 분리된 레이어에만 걸어야 드래그·핀치가
    같이 늘어지지 않는다. 눕는 판과 그 위에서 몸을 세우는 사람이 같은 곡선으로
    움직여야 '판이 눕는다'로 읽힌다. */
@@ -173,7 +191,8 @@ html[data-browser-nav-transition-skip] * {
 
 @media (prefers-reduced-motion: reduce) {
   .orbit-ring,
-  .orbit-bob {
+  .orbit-bob,
+  .orbit-universe {
     animation: none;
   }
 

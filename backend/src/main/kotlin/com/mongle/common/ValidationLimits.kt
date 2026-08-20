@@ -11,12 +11,16 @@ object ValidationLimits {
     // 글자수 (§12.3)
     const val NAME_MAX = 20
     const val CHIP_NAME_MAX = 10
+    const val ZONE_NAME_MAX = 10
     const val EVENT_TITLE_MAX = 40
     const val PREFERENCE_ITEM_MAX = 30
     const val MEMO_MAX = 200
 
     // 개수 (§12.2 / §12.6)
     const val CHIP_PER_KIND_MAX = 30
+
+    // 존은 좌우 스와이프로 순회하는 화면이라, 개수가 늘면 '다음 우주'가 탐색이 아니라 노동이 된다.
+    const val ZONE_MAX = 12
     const val EMOTION_PER_EVENT_MAX = 5
     const val RELATION_TAG_PER_PERSON_MAX = 10
     const val PREFERENCE_LIST_MAX = 20

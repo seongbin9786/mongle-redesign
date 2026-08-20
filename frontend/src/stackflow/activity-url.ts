@@ -10,6 +10,9 @@ export type AppActivityName =
   | 'Record'
   | 'HomeSettings'
   | 'TagSettings'
+  | 'ZoneSettings'
+  | 'ZonePersons'
+  | 'RelationGraph'
   | 'NotFound'
 
 function pathParam(value: string): string {
@@ -64,6 +67,14 @@ export function activityUrl<TActivityName extends AppActivityName>(
       return '/settings/home'
     case 'TagSettings':
       return '/settings/tags'
+    case 'ZoneSettings':
+      return '/settings/zones'
+    case 'ZonePersons': {
+      const { zoneId } = activityParams as InferActivityParams<'ZonePersons'>
+      return `/settings/zones/${pathParam(zoneId)}`
+    }
+    case 'RelationGraph':
+      return '/relation-graph'
     case 'NotFound':
       return '/404'
   }
