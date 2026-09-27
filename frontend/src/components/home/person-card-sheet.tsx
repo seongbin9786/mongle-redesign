@@ -25,7 +25,7 @@ export function PersonCardSheet({
   onProfile,
 }: {
   person: PersonNode | null
-  /** 시트를 그릴 Main 화면 노드. body로 새면 위에 쌓인 activity까지 따라 올라온다. */
+  /** 시트를 그릴 Main 화면의 오버레이 레이어. body로 새면 위에 쌓인 activity까지 따라 올라온다. */
   container?: HTMLElement | null
   onOpenChange: (open: boolean) => void
   onRecord: (personId: number) => void
